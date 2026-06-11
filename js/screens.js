@@ -186,18 +186,12 @@ Screens.novaPrevenda = function() {
             <div class="toggle">
               <div>
                 <div style="font-weight:600;font-size:13px;color:var(--navy)">O nome do pagador será o mesmo do contrato?</div>
-                <div class="text-sm muted serif">Se "Não", informe o motivo (ex: mãe pagando para o filho)</div>
               </div>
               <div class="toggle-btns">
                 <button type="button" class="toggle-btn active" data-toggle="sim">Sim</button>
                 <button type="button" class="toggle-btn" data-toggle="nao">Não</button>
               </div>
             </div>
-          </div>
-
-          <div class="form-field full" id="motivo-wrap" style="display:none">
-            <label>Motivo / relação <span class="req">*</span></label>
-            <input type="text" id="f-motivo" placeholder="Ex: Mãe comprando para o filho" />
           </div>
 
           <div class="form-field">
@@ -246,7 +240,6 @@ Screens.novaPrevendaBind = function() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('[data-toggle]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('motivo-wrap').style.display = btn.dataset.toggle === 'nao' ? 'flex' : 'none';
     });
   });
 
