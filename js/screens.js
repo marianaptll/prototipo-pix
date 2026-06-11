@@ -218,7 +218,7 @@ Screens.novaPrevenda = function() {
           <div class="form-field full">
             <label>Comprovante de PIX (PDF, JPG ou PNG) <span class="req">*</span></label>
             <div class="dropzone" id="dz-comp">
-              <div class="dz-icon">↑</div>
+              <div class="dz-icon">${Icons.upload}</div>
               <div class="dz-title">Clique ou arraste o arquivo aqui</div>
               <div class="dz-hint">Aceita JPG, PNG ou PDF · até 10 MB</div>
               <input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none" id="file-comp" />
@@ -233,7 +233,7 @@ Screens.novaPrevenda = function() {
         </div>
 
         <div class="row between" style="margin-top:20px">
-          <a href="#/minhas-vendas" class="btn btn-ghost">← Cancelar</a>
+          <a href="#/minhas-vendas" class="btn btn-ghost">${Icons.chevronL}Cancelar</a>
           <button type="submit" class="btn btn-primary btn-lg">Registrar pré-venda</button>
         </div>
       </form>
@@ -268,7 +268,7 @@ Screens.novaPrevendaBind = function() {
       document.getElementById('clear-file').addEventListener('click', (e) => {
         e.stopPropagation(); fi.value = '';
         dz.innerHTML = `
-          <div class="dz-icon">↑</div>
+          <div class="dz-icon">${Icons.upload}</div>
           <div class="dz-title">Clique ou arraste o arquivo aqui</div>
           <div class="dz-hint">Aceita JPG, PNG ou PDF · até 10 MB</div>`;
       });
@@ -429,7 +429,7 @@ Screens.verVenda = function(id) {
   return renderShell(`
     <div class="page-header">
       <div>
-        <a href="${backRoute}" class="back-link">← Voltar</a>
+        <a href="${backRoute}" class="back-link">${Icons.chevronL}Voltar</a>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
           <h1 class="page-title" style="margin:0">${r.nomeCliente}</h1>
           ${statusChip(r.status)}
@@ -459,12 +459,12 @@ Screens.verVenda = function(id) {
             </div>
             <div class="field-file">
               <div class="dropzone dropzone-sm" id="dz-action">
-                <div class="dz-icon">↑</div>
+                <div class="dz-icon">${Icons.upload}</div>
                 <div class="dz-title">Contrato (PDF)</div>
                 <input type="file" accept=".pdf" style="display:none" id="file-action" />
               </div>
             </div>
-            <button type="submit" class="btn btn-primary">Confirmar →</button>
+            <button type="submit" class="btn btn-primary">Confirmar${Icons.chevronR}</button>
           </div>
         </form>
       </div>
@@ -492,12 +492,12 @@ Screens.verVenda = function(id) {
             </div>
             <div class="field-file">
               <div class="dropzone dropzone-sm" id="dz-action">
-                <div class="dz-icon">↑</div>
+                <div class="dz-icon">${Icons.upload}</div>
                 <div class="dz-title">Comprovante complementar</div>
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" id="file-action" />
               </div>
             </div>
-            <button type="submit" class="btn btn-danger">Enviar complemento →</button>
+            <button type="submit" class="btn btn-danger">Enviar complemento${Icons.chevronR}</button>
           </div>
         </form>
       </div>
@@ -517,7 +517,7 @@ Screens.verVenda = function(id) {
           </div>
         </div>
         <div style="margin-top:14px">
-          <button class="btn btn-warning" id="btn-chamado">Marcar chamado como aberto →</button>
+          <button class="btn btn-warning" id="btn-chamado">Marcar chamado como aberto${Icons.chevronR}</button>
         </div>
       </div>
     ` : ''}
@@ -616,7 +616,7 @@ Screens.enviarContrato = function(id) {
       <div class="empty-state">
         <h3>Ação não disponível</h3>
         <p>Este registro não está aguardando contrato ou não foi encontrado.</p>
-        <a href="#/minhas-vendas" class="btn btn-secondary" style="margin-top:16px">← Voltar</a>
+        <a href="#/minhas-vendas" class="btn btn-secondary" style="margin-top:16px">${Icons.chevronL}Voltar</a>
       </div>
     `, 'minhas-vendas');
   }
@@ -624,7 +624,7 @@ Screens.enviarContrato = function(id) {
   return renderShell(`
     <div class="page-header">
       <div>
-        <a href="#/minhas-vendas" class="back-link">← Minhas vendas</a>
+        <a href="#/minhas-vendas" class="back-link">${Icons.chevronL}Minhas vendas</a>
         <h1 class="page-title">Enviar contrato</h1>
         <p class="page-subtitle">${r.nomeCliente} · ${r.id}</p>
       </div>
@@ -667,7 +667,7 @@ Screens.enviarContrato = function(id) {
             <div class="form-field">
               <label>Arquivo do contrato (PDF) <span class="req">*</span></label>
               <div class="dropzone" id="dz-cont">
-                <div class="dz-icon">↑</div>
+                <div class="dz-icon">${Icons.upload}</div>
                 <div class="dz-title">Clique ou arraste o contrato</div>
                 <div class="dz-hint">PDF · até 10 MB</div>
                 <input type="file" accept=".pdf" style="display:none" id="file-cont" />
@@ -676,7 +676,7 @@ Screens.enviarContrato = function(id) {
 
           </div>
           <div class="row between" style="margin-top:20px">
-            <a href="#/minhas-vendas" class="btn btn-ghost">← Cancelar</a>
+            <a href="#/minhas-vendas" class="btn btn-ghost">${Icons.chevronL}Cancelar</a>
             <button type="submit" class="btn btn-primary btn-lg">Confirmar envio</button>
           </div>
         </form>
@@ -743,7 +743,7 @@ Screens.enviarComplemento = function(id) {
       <div class="empty-state">
         <h3>Ação não disponível</h3>
         <p>Este registro não está com diferença pendente ou não foi encontrado.</p>
-        <a href="#/minhas-vendas" class="btn btn-secondary" style="margin-top:16px">← Voltar</a>
+        <a href="#/minhas-vendas" class="btn btn-secondary" style="margin-top:16px">${Icons.chevronL}Voltar</a>
       </div>
     `, 'minhas-vendas');
   }
@@ -753,7 +753,7 @@ Screens.enviarComplemento = function(id) {
   return renderShell(`
     <div class="page-header">
       <div>
-        <a href="#/minhas-vendas" class="back-link">← Minhas vendas</a>
+        <a href="#/minhas-vendas" class="back-link">${Icons.chevronL}Minhas vendas</a>
         <h1 class="page-title">Comprovante complementar</h1>
         <p class="page-subtitle">${r.nomeCliente} · ${r.id}</p>
       </div>
@@ -790,7 +790,7 @@ Screens.enviarComplemento = function(id) {
             <div class="form-field">
               <label>Arquivo do comprovante (PDF, JPG ou PNG) <span class="req">*</span></label>
               <div class="dropzone" id="dz-comp2">
-                <div class="dz-icon">↑</div>
+                <div class="dz-icon">${Icons.upload}</div>
                 <div class="dz-title">Clique ou arraste o comprovante</div>
                 <div class="dz-hint">PDF, JPG ou PNG · até 10 MB</div>
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" id="file-comp2" />
@@ -804,7 +804,7 @@ Screens.enviarComplemento = function(id) {
 
           </div>
           <div class="row between" style="margin-top:20px">
-            <a href="#/minhas-vendas" class="btn btn-ghost">← Cancelar</a>
+            <a href="#/minhas-vendas" class="btn btn-ghost">${Icons.chevronL}Cancelar</a>
             <button type="submit" class="btn btn-primary btn-lg">Confirmar complemento</button>
           </div>
         </form>
@@ -948,7 +948,7 @@ Screens.importarExtrato = function() {
         <p class="serif muted">Envie o PDF gerado pelo internet banking ou um CSV exportado da conta corrente. O sistema lê as linhas de PIX recebido e faz o cruzamento por nome e valor.</p>
 
         <div class="dropzone" id="dz-extrato" style="margin-top:8px">
-          <div class="dz-icon">⇪</div>
+          <div class="dz-icon">${Icons.import}</div>
           <div class="dz-title">Clique ou arraste o extrato bancário</div>
           <div class="dz-hint">PDF ou CSV · até 20 MB</div>
           <input type="file" accept=".pdf,.csv" id="ext-file" style="display:none" />
@@ -998,7 +998,7 @@ Screens.importarExtrato = function() {
             <strong>2 vinculados automaticamente</strong> · 3 sem correspondência — acesse <a href="#/conciliacao">Vincular PIX</a> para resolver manualmente.
           </div>
           <div class="row between" style="margin-top:14px">
-            <a href="#/dashboard" class="btn btn-ghost">← Voltar</a>
+            <a href="#/dashboard" class="btn btn-ghost">${Icons.chevronL}Voltar</a>
             <button class="btn btn-primary" id="confirm-import">Confirmar importação</button>
           </div>
         </div>
@@ -1019,7 +1019,7 @@ Screens.importarExtrato = function() {
         <div style="margin-top:12px"><button class="btn btn-secondary" id="add-line">+ Adicionar linha</button></div>
         <div id="manual-list" style="margin-top:18px"></div>
         <div class="row between" style="margin-top:18px">
-          <a href="#/dashboard" class="btn btn-ghost">← Voltar</a>
+          <a href="#/dashboard" class="btn btn-ghost">${Icons.chevronL}Voltar</a>
           <button class="btn btn-primary" id="confirm-manual">Processar lançamentos</button>
         </div>
       </div>
@@ -1033,9 +1033,9 @@ Screens.importarExtrato = function() {
           ${[...EXTRATO_HISTORY].reverse().map(ext => `
             <div class="extrato-history-card">
               <div class="extrato-history-main">
-                <div class="extrato-history-icon">⇪</div>
+                <div class="extrato-history-icon">${Icons.import}</div>
                 <div class="extrato-history-info">
-                  <button class="extrato-history-name" data-download-extrato="${ext.id}" title="Baixar arquivo">${ext.fileName} ↓</button>
+                  <button class="extrato-history-name" data-download-extrato="${ext.id}" title="Baixar arquivo">${ext.fileName} ${Icons.download}</button>
                   <div class="extrato-history-meta">${fmtDateTime(ext.importedAt)} · ${ext.importedBy}</div>
                 </div>
                 <div class="extrato-history-summary">
@@ -1271,7 +1271,7 @@ Screens.conciliacao = function() {
             ${State.selectedLeft && State.selectedRight ? `
               <div class="concil-match-preview">
                 <div class="text-sm" style="color:var(--navy);font-weight:600">Vincular selecionados?</div>
-                <button class="btn btn-primary" id="btn-vincular" style="margin-top:8px">Vincular →</button>
+                <button class="btn btn-primary" id="btn-vincular" style="margin-top:8px">Vincular${Icons.chevronR}</button>
               </div>
             ` : `
               <div class="muted text-sm" style="text-align:center">Selecione um item de cada lado para vincular</div>
@@ -1668,15 +1668,15 @@ function renderVendaCard(r, viewAs) {
   const diff = r.valorReal !== null ? r.valorReal - r.valorComprovante : 0;
   let action;
   if (isMine && r.status === 'aguardando_contrato') {
-    action = `<a href="#/ver-venda/${r.id}" class="btn btn-primary btn-sm">Enviar contrato →</a>`;
+    action = `<a href="#/ver-venda/${r.id}" class="btn btn-primary btn-sm">Enviar contrato${Icons.chevronR}</a>`;
   } else if (isMine && r.status === 'diferenca_pendente' && diff > 0.005) {
-    action = `<a href="#/ver-venda/${r.id}" class="btn btn-danger btn-sm">Enviar complemento →</a>`;
+    action = `<a href="#/ver-venda/${r.id}" class="btn btn-danger btn-sm">Enviar complemento${Icons.chevronR}</a>`;
   } else if (isMine && r.status === 'diferenca_pendente' && diff < -0.005) {
-    action = `<a href="#/ver-venda/${r.id}" class="btn btn-warning btn-sm">Abrir chamado →</a>`;
+    action = `<a href="#/ver-venda/${r.id}" class="btn btn-warning btn-sm">Abrir chamado${Icons.chevronR}</a>`;
   } else if (viewAs === 'backoffice' && r.status === 'pronto') {
-    action = `<button class="btn btn-primary btn-sm" data-aprovar="${r.id}">Lançar cota →</button>`;
+    action = `<button class="btn btn-primary btn-sm" data-aprovar="${r.id}">Lançar cota${Icons.chevronR}</button>`;
   } else {
-    action = `<a href="#/ver-venda/${r.id}" class="btn btn-ghost btn-sm">Ver →</a>`;
+    action = `<a href="#/ver-venda/${r.id}" class="btn btn-ghost btn-sm">Ver${Icons.chevronR}</a>`;
   }
 
   return `
@@ -1733,7 +1733,7 @@ function renderAprovacaoCard(r) {
 
       <div class="aprov-card-footer">
         <button class="btn btn-ghost btn-sm" data-ver-aprov="${r.id}">Ver detalhes</button>
-        <button class="btn btn-primary" data-aprovar="${r.id}">Lançar cota →</button>
+        <button class="btn btn-primary" data-aprovar="${r.id}">Lançar cota${Icons.chevronR}</button>
       </div>
     </div>
   `;
