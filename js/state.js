@@ -55,7 +55,7 @@ function fmtDateTime(s) {
 /* ---------- Helpers de dados ---------- */
 
 function getRecordsForView() {
-  if (State.persona && State.persona.role === 'Gerente de Vendas') {
+  if (State.persona && State.persona.role === 'Comercial') {
     return RECORDS.filter(r => r.gerenteId === State.persona.id);
   }
   return RECORDS;

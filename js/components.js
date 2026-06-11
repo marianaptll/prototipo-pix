@@ -39,12 +39,12 @@ function renderShell(content, activeRoute) {
 
 function renderPersonaSwitch() {
   const curr = State.persona;
-  const isGerente = curr && curr.role === 'Gerente de Vendas';
-  const outros = PERSONAS.filter(p => p.role !== 'Gerente de Vendas');
+  const isGerente = curr && curr.role === 'Comercial';
+  const outros = PERSONAS.filter(p => p.role !== 'Comercial');
 
   return `
     <div class="persona-switch">
-      <button class="${isGerente ? 'active' : ''}" data-action="switch-role-gerente">Gerente</button>
+      <button class="${isGerente ? 'active' : ''}" data-action="switch-role-gerente">Comercial</button>
       ${outros.map(p => `
         <button class="${curr && curr.id === p.id ? 'active' : ''}"
                 data-action="switch-persona" data-persona="${p.id}"
@@ -57,7 +57,7 @@ function renderPersonaSwitch() {
 }
 
 function renderSubnav(active, counts) {
-  const role = State.persona.role === 'Gerente de Vendas' ? 'gerente' : State.persona.id;
+  const role = State.persona.role === 'Comercial' ? 'gerente' : State.persona.id;
   let links = [];
 
   if (role === 'gerente') {

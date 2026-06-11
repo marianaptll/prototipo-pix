@@ -80,16 +80,16 @@ const MANAGERS = [
 // Login personas — 1 gerente representativo por diretoria + operacional
 const PERSONAS = [
   // ── Lótus ──
-  { id: 'g1',  role: 'Gerente de Vendas', name: 'Carlos Mendes',    initials: 'CM', superid: 'lotus',  dirid: 'fenix',     description: 'Diretoria Fênix · Lótus'          },
-  { id: 'g2',  role: 'Gerente de Vendas', name: 'Juliana Faria',    initials: 'JF', superid: 'lotus',  dirid: 'diamantes', description: 'Diretoria Diamantes · Lótus'      },
-  { id: 'g3',  role: 'Gerente de Vendas', name: 'Eduardo Pinho',    initials: 'EP', superid: 'lotus',  dirid: 'atena',     description: 'Diretoria Atena · Lótus'          },
-  { id: 'g4',  role: 'Gerente de Vendas', name: 'Renata Sales',     initials: 'RS', superid: 'lotus',  dirid: 'anjos',     description: 'Diretoria Anjos · Lótus'          },
-  { id: 'g21', role: 'Gerente de Vendas', name: 'Otávio Cunha',     initials: 'OC', superid: 'lotus',  dirid: 'groove',    description: 'Diretoria Groove · Lótus'         },
+  { id: 'g1',  role: 'Comercial', name: 'Carlos Mendes',    initials: 'CM', superid: 'lotus',  dirid: 'fenix',     description: 'Diretoria Fênix · Lótus'          },
+  { id: 'g2',  role: 'Comercial', name: 'Juliana Faria',    initials: 'JF', superid: 'lotus',  dirid: 'diamantes', description: 'Diretoria Diamantes · Lótus'      },
+  { id: 'g3',  role: 'Comercial', name: 'Eduardo Pinho',    initials: 'EP', superid: 'lotus',  dirid: 'atena',     description: 'Diretoria Atena · Lótus'          },
+  { id: 'g4',  role: 'Comercial', name: 'Renata Sales',     initials: 'RS', superid: 'lotus',  dirid: 'anjos',     description: 'Diretoria Anjos · Lótus'          },
+  { id: 'g21', role: 'Comercial', name: 'Otávio Cunha',     initials: 'OC', superid: 'lotus',  dirid: 'groove',    description: 'Diretoria Groove · Lótus'         },
   // ── Eagles ──
-  { id: 'g26', role: 'Gerente de Vendas', name: 'Aline Nascimento', initials: 'AN', superid: 'eagles', dirid: 'aya',       description: 'Diretoria Aya · Eagles'           },
-  { id: 'g31', role: 'Gerente de Vendas', name: 'André Silveira',   initials: 'AS', superid: 'eagles', dirid: 'quimera',   description: 'Diretoria Quimera · Eagles'       },
-  { id: 'g36', role: 'Gerente de Vendas', name: 'Kamila Ribeiro',   initials: 'KR', superid: 'eagles', dirid: 'bell',      description: 'Diretoria Bell Breakers · Eagles' },
-  { id: 'g41', role: 'Gerente de Vendas', name: 'Paulo Caixeta',    initials: 'PC', superid: 'eagles', dirid: 'dunamis',   description: 'Diretoria Dunamis · Eagles'       },
+  { id: 'g26', role: 'Comercial', name: 'Aline Nascimento', initials: 'AN', superid: 'eagles', dirid: 'aya',       description: 'Diretoria Aya · Eagles'           },
+  { id: 'g31', role: 'Comercial', name: 'André Silveira',   initials: 'AS', superid: 'eagles', dirid: 'quimera',   description: 'Diretoria Quimera · Eagles'       },
+  { id: 'g36', role: 'Comercial', name: 'Kamila Ribeiro',   initials: 'KR', superid: 'eagles', dirid: 'bell',      description: 'Diretoria Bell Breakers · Eagles' },
+  { id: 'g41', role: 'Comercial', name: 'Paulo Caixeta',    initials: 'PC', superid: 'eagles', dirid: 'dunamis',   description: 'Diretoria Dunamis · Eagles'       },
   // ── Operacional ──
   { id: 'financeiro',     role: 'Financeiro',        name: 'Marcelo Tavares', initials: 'MT', description: 'Importa extrato bancário e vincula valores'       },
   { id: 'backoffice_adm', role: 'Aprovação de Cota', name: 'Patrícia Lopes',  initials: 'PL', description: 'Confere cotas prontas e lança na administradora' },
@@ -134,7 +134,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-08 14:45', who: 'Carlos (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-08 14:45', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
     ],
   },
   {
@@ -156,7 +156,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-03 15:25', who: 'Carlos (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-03 15:25', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-04 09:00', who: 'Sistema',          what: 'PIX vinculado automaticamente ao extrato bancário · R$ 980,00' },
       { when: '2026-06-04 09:00', who: 'Sistema',          what: 'Aguardando envio do contrato pelo gerente' },
     ],
@@ -182,9 +182,9 @@ let RECORDS = [
     comprovanteComplementar: null,
     chamadoReembolso: null,
     history: [
-      { when: '2026-06-04 10:02', who: 'Carlos (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-04 10:02', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-04 14:00', who: 'Sistema',          what: 'PIX vinculado ao extrato · R$ 1.180,00' },
-      { when: '2026-06-05 16:30', who: 'Carlos (Gerente)', what: 'Contrato enviado · valor real R$ 1.260 · Cota 0894' },
+      { when: '2026-06-05 16:30', who: 'Carlos (Comercial)', what: 'Contrato enviado · valor real R$ 1.260 · Cota 0894' },
       { when: '2026-06-05 16:30', who: 'Sistema',          what: 'Diferença detectada · cliente pagou R$ 1.180 mas contrato exige R$ 1.260 · aguardando comprovante complementar de R$ 80,00' },
     ],
   },
@@ -207,9 +207,9 @@ let RECORDS = [
     valorReal: 1350.00,
     contrato: { fileName: 'contrato_ana_beatriz.pdf', uploadedAt: '2026-06-08 10:40', cota: '0901' },
     history: [
-      { when: '2026-06-07 11:15', who: 'Carlos (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-07 11:15', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-07 16:00', who: 'Sistema',          what: 'PIX vinculado automaticamente ao extrato · R$ 1.350,00' },
-      { when: '2026-06-08 10:40', who: 'Carlos (Gerente)', what: 'Contrato enviado · valor real R$ 1.350,00 · Cota 0901' },
+      { when: '2026-06-08 10:40', who: 'Carlos (Comercial)', what: 'Contrato enviado · valor real R$ 1.350,00 · Cota 0901' },
       { when: '2026-06-08 10:40', who: 'Sistema',          what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' },
     ],
   },
@@ -232,9 +232,9 @@ let RECORDS = [
     valorReal: 1120.00,
     contrato: { fileName: 'contrato_ricardo_alves.pdf', uploadedAt: '2026-06-03 14:20', cota: '0887' },
     history: [
-      { when: '2026-06-02 09:42', who: 'Carlos (Gerente)',     what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-02 09:42', who: 'Carlos (Comercial)',     what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-02 15:00', who: 'Sistema',              what: 'PIX vinculado automaticamente ao extrato · R$ 1.120,00' },
-      { when: '2026-06-03 14:20', who: 'Carlos (Gerente)',     what: 'Contrato enviado · Cota 0887' },
+      { when: '2026-06-03 14:20', who: 'Carlos (Comercial)',     what: 'Contrato enviado · Cota 0887' },
       { when: '2026-06-04 09:00', who: 'Patrícia (Aprovação)', what: 'Cota 0887 lançada na administradora · venda concluída' },
     ],
   },
@@ -259,7 +259,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-04 11:30', who: 'Juliana (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-04 11:30', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
     ],
   },
   {
@@ -281,7 +281,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-06 09:30', who: 'Juliana (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-06 09:30', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-06 16:00', who: 'Sistema',           what: 'PIX vinculado ao extrato · R$ 1.080,00' },
     ],
   },
@@ -304,9 +304,9 @@ let RECORDS = [
     valorReal: 1260.00,
     contrato: { fileName: 'contrato_vinicius.pdf', uploadedAt: '2026-06-09 09:10', cota: '0898' },
     history: [
-      { when: '2026-06-08 08:25', who: 'Juliana (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-08 08:25', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-08 14:00', who: 'Sistema',           what: 'PIX vinculado ao extrato · R$ 1.260,00' },
-      { when: '2026-06-09 09:10', who: 'Juliana (Gerente)', what: 'Contrato enviado · Cota 0898' },
+      { when: '2026-06-09 09:10', who: 'Juliana (Comercial)', what: 'Contrato enviado · Cota 0898' },
     ],
   },
 
@@ -330,9 +330,9 @@ let RECORDS = [
     valorReal: 1320.00,
     contrato: { fileName: 'contrato_larissa.pdf', uploadedAt: '2026-06-06 11:00', cota: '0897' },
     history: [
-      { when: '2026-06-05 16:20', who: 'Eduardo (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-05 16:20', who: 'Eduardo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-06 08:00', who: 'Sistema',           what: 'PIX vinculado ao extrato · R$ 1.320,00' },
-      { when: '2026-06-06 11:00', who: 'Eduardo (Gerente)', what: 'Contrato enviado · Cota 0897' },
+      { when: '2026-06-06 11:00', who: 'Eduardo (Comercial)', what: 'Contrato enviado · Cota 0897' },
     ],
   },
   {
@@ -354,7 +354,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-07 10:12', who: 'Eduardo (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-07 10:12', who: 'Eduardo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
     ],
   },
 
@@ -380,9 +380,9 @@ let RECORDS = [
     comprovanteComplementar: null,
     chamadoReembolso: null,
     history: [
-      { when: '2026-06-05 10:20', who: 'Renata (Gerente)',     what: 'Pré-venda criada · pagador ≠ titular (mãe → filho)' },
+      { when: '2026-06-05 10:20', who: 'Renata (Comercial)',     what: 'Pré-venda criada · pagador ≠ titular (mãe → filho)' },
       { when: '2026-06-05 15:00', who: 'Marcelo (Financeiro)', what: 'PIX vinculado manualmente · remetente: Helena Souza' },
-      { when: '2026-06-06 09:55', who: 'Renata (Gerente)',     what: 'Contrato enviado · Cota 0896' },
+      { when: '2026-06-06 09:55', who: 'Renata (Comercial)',     what: 'Contrato enviado · Cota 0896' },
       { when: '2026-06-06 09:55', who: 'Sistema',              what: 'Pagamento excede o valor do contrato · R$ 50,00 a devolver ao cliente · aguardando abertura de chamado' },
     ],
   },
@@ -405,7 +405,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-06 13:18', who: 'Renata (Gerente)',     what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-06 13:18', who: 'Renata (Comercial)',     what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-07 11:00', who: 'Marcelo (Financeiro)', what: 'PIX vinculado manualmente · R$ 1.100,00' },
     ],
   },
@@ -430,7 +430,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-09 10:22', who: 'Otávio (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-09 10:22', who: 'Otávio (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
     ],
   },
 
@@ -454,7 +454,7 @@ let RECORDS = [
     valorReal: null,
     contrato: null,
     history: [
-      { when: '2026-06-07 14:50', who: 'Aline (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-07 14:50', who: 'Aline (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-08 09:00', who: 'Sistema',         what: 'PIX vinculado automaticamente ao extrato · R$ 1.380,00' },
     ],
   },
@@ -479,9 +479,9 @@ let RECORDS = [
     valorReal: 1560.00,
     contrato: { fileName: 'contrato_felipe_drummond.pdf', uploadedAt: '2026-06-06 15:30', cota: '0910' },
     history: [
-      { when: '2026-06-05 11:12', who: 'André (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-05 11:12', who: 'André (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-05 16:00', who: 'Sistema',         what: 'PIX vinculado automaticamente ao extrato · R$ 1.560,00' },
-      { when: '2026-06-06 15:30', who: 'André (Gerente)', what: 'Contrato enviado · Cota 0910' },
+      { when: '2026-06-06 15:30', who: 'André (Comercial)', what: 'Contrato enviado · Cota 0910' },
       { when: '2026-06-06 15:30', who: 'Sistema',         what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' },
     ],
   },
@@ -506,9 +506,9 @@ let RECORDS = [
     valorReal: 1050.00,
     contrato: { fileName: 'contrato_juliana_castro.pdf', uploadedAt: '2026-06-02 10:15', cota: '0905' },
     history: [
-      { when: '2026-06-01 13:42', who: 'Kamila (Gerente)',     what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-01 13:42', who: 'Kamila (Comercial)',     what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-01 18:00', who: 'Sistema',              what: 'PIX vinculado automaticamente ao extrato · R$ 1.050,00' },
-      { when: '2026-06-02 10:15', who: 'Kamila (Gerente)',     what: 'Contrato enviado · Cota 0905' },
+      { when: '2026-06-02 10:15', who: 'Kamila (Comercial)',     what: 'Contrato enviado · Cota 0905' },
       { when: '2026-06-02 17:00', who: 'Patrícia (Aprovação)', what: 'Cota 0905 lançada na administradora · venda concluída' },
     ],
   },
@@ -535,9 +535,9 @@ let RECORDS = [
     comprovanteComplementar: null,
     chamadoReembolso: null,
     history: [
-      { when: '2026-06-08 16:10', who: 'Paulo (Gerente)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-08 16:10', who: 'Paulo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
       { when: '2026-06-08 18:00', who: 'Sistema',         what: 'PIX vinculado automaticamente ao extrato · R$ 1.300,00' },
-      { when: '2026-06-09 09:00', who: 'Paulo (Gerente)', what: 'Contrato enviado · Cota 0921' },
+      { when: '2026-06-09 09:00', who: 'Paulo (Comercial)', what: 'Contrato enviado · Cota 0921' },
       { when: '2026-06-09 09:00', who: 'Sistema',         what: 'Pagamento excede o valor do contrato · R$ 50,00 a devolver ao cliente · aguardando abertura de chamado' },
     ],
   },

@@ -74,7 +74,7 @@ const Router = {
 
     // Restrições por perfil
     const role = State.persona
-      ? (State.persona.role === 'Gerente de Vendas' ? 'gerente' : State.persona.id)
+      ? (State.persona.role === 'Comercial' ? 'gerente' : State.persona.id)
       : null;
 
     const gerenteOnly   = ['nova-prevenda', 'minhas-vendas', 'vendas-concluidas'];
@@ -100,7 +100,7 @@ const Router = {
 
   _homeRoute() {
     if (!State.persona) return 'login';
-    const role = State.persona.role === 'Gerente de Vendas' ? 'gerente' : State.persona.id;
+    const role = State.persona.role === 'Comercial' ? 'gerente' : State.persona.id;
     if (role === 'gerente')       return 'minhas-vendas';
     if (role === 'financeiro')    return 'dashboard';
     return 'aprovacoes';
@@ -124,12 +124,12 @@ const Router = {
     });
     document.querySelectorAll('[data-action="switch-role-gerente"]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (State.persona && State.persona.role === 'Gerente de Vendas') return;
+        if (State.persona && State.persona.role === 'Comercial') return;
         const p = PERSONAS.find(x => x.id === 'g1');
         State.setPersona(p);
         location.hash = '#/minhas-vendas';
         if (location.hash === '#/minhas-vendas') this.refresh();
-        toast(`Perfil: Gerente de Vendas`, 'success');
+        toast(`Perfil: Comercial`, 'success');
       });
     });
     document.querySelectorAll('[data-action="logout"]').forEach(btn => {

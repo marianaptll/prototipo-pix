@@ -32,8 +32,8 @@ Screens.login = function() {
                   <div class="persona-desc">${p.description}</div>
                 </div>
               </div>`;
-            const gerentes = PERSONAS.filter(p => p.role === 'Gerente de Vendas');
-            const outros   = PERSONAS.filter(p => p.role !== 'Gerente de Vendas');
+            const gerentes = PERSONAS.filter(p => p.role === 'Comercial');
+            const outros   = PERSONAS.filter(p => p.role !== 'Comercial');
             const supts = SUPERINTENDENCIAS.map(s => {
               const sDirs = DIRETORIAS.filter(d => d.superid === s.id);
               const rows = sDirs.map(d => {
@@ -44,7 +44,7 @@ Screens.login = function() {
               return rows ? `<div class="persona-super-label">${s.name}</div>${rows}` : '';
             }).join('');
             return `
-              <div class="persona-section-title">Gerente de Vendas</div>
+              <div class="persona-section-title">Comercial</div>
               ${supts}
               <div class="persona-section-title" style="margin-top:12px">Operacional</div>
               ${outros.map(renderOpt).join('')}
@@ -302,7 +302,7 @@ Screens.novaPrevendaBind = function() {
       extrato: null,
       valorReal: null,
       contrato: null,
-      history: [{ when: ts, who: `${State.persona.name} (Gerente)`, what: 'Pré-venda criada · comprovante enviado' }],
+      history: [{ when: ts, who: `${State.persona.name} (Comercial)`, what: 'Pré-venda criada · comprovante enviado' }],
     };
 
     RECORDS.push(record);
@@ -417,7 +417,7 @@ Screens.verVenda = function(id) {
     return renderShell(`<div class="empty-state"><h3>Registro não encontrado</h3></div>`, '');
   }
 
-  const isGerente  = State.persona.role === 'Gerente de Vendas';
+  const isGerente  = State.persona.role === 'Comercial';
   const backRoute  = isGerente ? '#/minhas-vendas'
     : (State.persona.id === 'financeiro' ? '#/dashboard' : '#/aprovacoes');
 
@@ -540,7 +540,7 @@ Screens.verVendaBind = function(id) {
       const ts = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
       r.chamadoReembolso = true;
       r.status = 'pronto';
-      r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Chamado de reembolso aberto · devolução de ${fmtMoney(Math.abs(r.valorReal - r.valorComprovante))} solicitada ao financeiro` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Chamado de reembolso aberto · devolução de ${fmtMoney(Math.abs(r.valorReal - r.valorComprovante))} solicitada ao financeiro` });
       r.history.push({ when: ts, who: 'Sistema', what: 'Venda liberada para aprovação de cota' });
       toast(`Chamado aberto · ${r.nomeCliente} pronto para aprovação`, 'success');
       Router.refresh();
@@ -585,12 +585,12 @@ Screens.verVendaBind = function(id) {
       const diff = valor - r.valorComprovante;
       if (diff > 0.005) {
         r.status = 'diferenca_pendente';
-        r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Cota ${cota}` });
+        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Cota ${cota}` });
         r.history.push({ when: ts, who: 'Sistema', what: `Diferença detectada · cliente pagou ${fmtMoney(r.valorComprovante)} mas contrato exige ${fmtMoney(valor)} · aguardando comprovante complementar de ${fmtMoney(diff)}` });
         toast(`Contrato salvo · cobrança de ${fmtMoney(diff)} pendente`, 'error');
       } else {
         r.status = 'pronto';
-        r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Cota ${cota}` });
+        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Cota ${cota}` });
         if (diff < -0.005) r.history.push({ when: ts, who: 'Sistema', what: `Pagamento excede o contrato · ${fmtMoney(Math.abs(diff))} a devolver` });
         toast(`Contrato enviado · ${r.nomeCliente} pronto para aprovação`, 'success');
       }
@@ -599,7 +599,7 @@ Screens.verVendaBind = function(id) {
       r.comprovanteComplementar = { fileName, uploadedAt: ts, valor };
       r.extratoComplementar = null;
       r.status = 'aguardando_financeiro';
-      r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Comprovante complementar enviado · ${fmtMoney(valor)} · aguardando análise do financeiro` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Comprovante complementar enviado · ${fmtMoney(valor)} · aguardando análise do financeiro` });
       toast(`Comprovante enviado · aguardando análise do financeiro`, 'success');
     }
 
@@ -719,11 +719,11 @@ Screens.enviarContratoBind = function(id) {
     const diff = valorReal - r.valorComprovante;
     if (diff > 0.005) {
       r.status = 'diferenca_pendente';
-      r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Cota ${cota}` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Cota ${cota}` });
       r.history.push({ when: ts, who: 'Sistema', what: `Diferença detectada · cliente pagou ${fmtMoney(r.valorComprovante)} mas contrato exige ${fmtMoney(valorReal)} · aguardando comprovante complementar de ${fmtMoney(diff)}` });
     } else {
       r.status = 'pronto';
-      r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Cota ${cota}` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Cota ${cota}` });
       if (diff < -0.005) {
         r.history.push({ when: ts, who: 'Sistema', what: `Pagamento excede o valor do contrato · ${fmtMoney(Math.abs(diff))} a devolver ao cliente` });
       }
@@ -846,7 +846,7 @@ Screens.enviarComplementoBind = function(id) {
       uploadedAt: ts,
       valor: valorComp2,
     };
-    r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Comprovante complementar enviado · ${fmtMoney(valorComp2)}` });
+    r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Comprovante complementar enviado · ${fmtMoney(valorComp2)}` });
 
     const totalPago = r.valorComprovante + valorComp2;
     if (totalPago >= r.valorReal - 0.005) {
@@ -1331,7 +1331,7 @@ Screens.conciliacaoBind = function() {
               <span>${r.nomeCliente} <span class="muted text-sm">· ${r.motivoDiferenca}</span></span>
             </div>` : ''}
             <div class="detail-modal-row">
-              <span class="detail-modal-label">Gerente</span>
+              <span class="detail-modal-label">Comercial</span>
               <span>${r.gerenteNome}</span>
             </div>
             <div class="detail-modal-row">
@@ -1636,7 +1636,7 @@ Screens.campanhasBind = function() {
 function renderVendaListHeader(showGerente) {
   return `
     <div class="venda-row venda-row-header">
-      <div class="vcol-main">${showGerente ? 'Gerente · Cliente' : 'Cliente'}</div>
+      <div class="vcol-main">${showGerente ? 'Comercial · Cliente' : 'Cliente'}</div>
       <div class="vcol-doc">Comprovante</div>
       <div class="vcol-doc">Extrato</div>
       <div class="vcol-doc">Contrato</div>
@@ -1653,7 +1653,7 @@ function renderDiffCell(r) {
   }
   const diff = r.valorReal - r.valorComprovante;
   if (Math.abs(diff) < 0.005) {
-    return `<span class="diff-cell quitado">Quitado</span>`;
+    return `<span class="diff-cell quitado">OK</span>`;
   }
   if (diff > 0) {
     return `<span class="diff-cell cobrar" title="Cliente pagou menos que o valor real do contrato">Cobrar<br>${fmtMoney(diff)}</span>`;
@@ -1750,7 +1750,7 @@ function renderVendaDetalhe(r) {
         <dl class="info-dl">
           <dt>Pré-venda</dt>    <dd>${r.id}</dd>
           <dt>Campanha</dt>     <dd>${r.campanhaId}</dd>
-          <dt>Gerente</dt>      <dd>${r.gerenteNome}</dd>
+          <dt>Comercial</dt>      <dd>${r.gerenteNome}</dd>
           <dt>Vendedor</dt>     <dd>${r.nomeVendedor}</dd>
           <dt>Pagador</dt>      <dd>${r.nomePagador}</dd>
           <dt>Cliente</dt>      <dd>${r.nomeCliente}</dd>
@@ -2004,7 +2004,7 @@ function bindVendaCardActions() {
           obs:      document.getElementById('reimb-obs').value,
           valor:    diff,
         };
-        r.history.push({ when: ts, who: `${State.persona.name} (Gerente)`, what: `Chamado de reembolso aberto para o financeiro · ${fmtMoney(diff)}` });
+        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Chamado de reembolso aberto para o financeiro · ${fmtMoney(diff)}` });
         closeModal();
         toast(`Chamado enviado ao financeiro · ${fmtMoney(diff)} a devolver`, 'success');
         Router.refresh();
