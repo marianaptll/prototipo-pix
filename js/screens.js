@@ -1239,6 +1239,7 @@ Screens.conciliacao = function() {
             <p class="serif muted text-sm">Pré-vendas cujo PIX ainda não foi identificado no extrato bancário</p>
           </div>
           ${semExtrato.length === 0 ? `<p class="muted serif">Nenhum comprovante pendente.</p>` : `
+            <input type="search" id="search-comp" class="filter-input concil-search" placeholder="Buscar por nome, gerente ou ID…" />
             <div class="concil-list" id="list-comp">
               ${semExtrato.map(r => {
                 const isCompl = r.comprovanteComplementar && r.extratoComplementar === null;
@@ -1286,6 +1287,7 @@ Screens.conciliacao = function() {
             <p class="serif muted text-sm">Entradas do extrato sem pré-venda correspondente</p>
           </div>
           ${orfaos.length === 0 ? `<p class="muted serif">Nenhum PIX órfão.</p>` : `
+            <input type="search" id="search-ext" class="filter-input concil-search" placeholder="Buscar por nome…" />
             <div class="concil-list" id="list-ext">
               ${orfaos.map(e => `
                 <div class="concil-item ${State.selectedRight === e.id ? 'selected' : ''}" data-select-right="${e.id}">
@@ -1307,6 +1309,29 @@ Screens.conciliacao = function() {
 };
 
 Screens.conciliacaoBind = function() {
+  const searchComp = document.getElementById('search-comp');
+  const searchExt  = document.getElementById('search-ext');
+
+  if (searchComp) {
+    searchComp.addEventListener('input', () => {
+      const q = searchComp.value.toLowerCase();
+      document.querySelectorAll('#list-comp .concil-item').forEach(el => {
+        const text = el.textContent.toLowerCase();
+        el.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  }
+
+  if (searchExt) {
+    searchExt.addEventListener('input', () => {
+      const q = searchExt.value.toLowerCase();
+      document.querySelectorAll('#list-ext .concil-item').forEach(el => {
+        const text = el.textContent.toLowerCase();
+        el.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  }
+
   document.querySelectorAll('[data-preview-record]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1376,13 +1401,13 @@ Screens.conciliacaoBind = function() {
 
   document.querySelectorAll('[data-select-left]').forEach(el => {
     el.addEventListener('click', () => {
-      State.selectedLeft = el.dataset.selectLeft;
+      State.selectedLeft = State.selectedLeft === el.dataset.selectLeft ? null : el.dataset.selectLeft;
       Router.refresh();
     });
   });
   document.querySelectorAll('[data-select-right]').forEach(el => {
     el.addEventListener('click', () => {
-      State.selectedRight = el.dataset.selectRight;
+      State.selectedRight = State.selectedRight === el.dataset.selectRight ? null : el.dataset.selectRight;
       Router.refresh();
     });
   });

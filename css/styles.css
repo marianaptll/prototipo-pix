@@ -1340,6 +1340,7 @@ table.data tbody tr.row-urgent:hover td { background: var(--red-bg); }
 }
 .concil-header { margin-bottom: 10px; }
 .concil-header h3 { margin: 0 0 4px; font-size: 14px; color: var(--navy); display: flex; align-items: center; gap: 8px; }
+.concil-search { width: 100%; min-width: unset; margin-bottom: 10px; }
 .concil-list { display: flex; flex-direction: column; gap: 8px; }
 .concil-item {
   background: var(--surface);
