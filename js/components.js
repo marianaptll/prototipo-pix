@@ -64,7 +64,7 @@ function renderSubnav(active, counts) {
     const myRecords = RECORDS.filter(r => r.gerenteId === State.persona.id);
     const acoesPend = myRecords.filter(r => r.status === 'aguardando_contrato').length;
     links = [
-      { href: '#/minhas-vendas',     icon: Icons.list,     label: 'Minhas vendas',     key: 'minhas-vendas',     badge: acoesPend || 0 },
+      { href: '#/minhas-vendas',     icon: Icons.list,     label: 'Minhas vendas',     key: 'minhas-vendas' },
       { href: '#/vendas-concluidas', icon: Icons.complete, label: 'Vendas concluídas', key: 'vendas-concluidas' },
     ];
   } else if (role === 'financeiro') {
