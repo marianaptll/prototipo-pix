@@ -317,7 +317,7 @@ Screens.minhasVendas = function() {
     { label: 'Aguardando contrato',  value: counts.aguardando_contrato,   status: 'aguardando_contrato',   accent: 'blue' },
     { label: 'Diferença pendente',   value: counts.diferenca_pendente,    status: 'diferenca_pendente',    accent: 'orange' },
     { label: 'Pronto para aprovação',value: counts.pronto,                status: 'pronto',                accent: 'green' },
-    { label: 'Concluídas',           value: counts.concluida,             status: 'concluida',             accent: 'teal' },
+    { label: 'Concluídas',           value: counts.concluida,             status: 'concluida',             accent: 'skyblue' },
   ];
 
   return renderShell(`
@@ -468,31 +468,52 @@ Screens.verVenda = function(id) {
         <div class="action-panel-label">
           <div class="action-panel-icon">!</div>
           <div>
-            <div class="action-panel-title">Comprovante complementar pendente</div>
+            <div class="action-panel-title">Pagamento complementar pendente</div>
             <div class="action-panel-desc">
               O cliente pagou <strong>${fmtMoney(r.valorComprovante)}</strong> mas o contrato exige <strong>${fmtMoney(r.valorReal)}</strong>.
               Falta cobrar <strong>${fmtMoney(diff)}</strong>.
-              Após o pagamento, envie o comprovante abaixo.
+              Gere a cobrança, aguarde o pagamento e então envie o comprovante.
             </div>
           </div>
         </div>
-        <form id="form-action" class="action-panel-form">
-          <div class="action-inline-row">
-            <div class="field-valor">
-              <input type="number" id="a-valor" step="0.01" required
-                     value="${diff.toFixed(2)}" placeholder="Valor (R$)" />
-              <div class="help">Esperado: ${fmtMoney(diff)}</div>
+
+        <div class="action-panel-steps">
+          <div class="apstep">
+            <div class="apstep-num">1</div>
+            <div class="apstep-body">
+              <div class="apstep-title">Gerar cobrança de ${fmtMoney(diff)}</div>
+              <div class="apstep-desc">Envie ao cliente via PIX ou boleto</div>
+              <button class="btn btn-secondary" id="btn-gerar-cobranca" style="margin-top:10px">
+                Gerar cobrança${Icons.chevronR}
+              </button>
             </div>
-            <div class="field-file">
-              <div class="dropzone dropzone-sm" id="dz-action">
-                <div class="dz-icon">${Icons.upload}</div>
-                <div class="dz-title">Comprovante complementar</div>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" id="file-action" />
-              </div>
-            </div>
-            <button type="submit" class="btn btn-danger">Enviar complemento${Icons.chevronR}</button>
           </div>
-        </form>
+
+          <div class="apstep">
+            <div class="apstep-num">2</div>
+            <div class="apstep-body">
+              <div class="apstep-title">Enviar comprovante do pagamento</div>
+              <div class="apstep-desc">Após o cliente pagar, anexe o comprovante aqui</div>
+              <form id="form-action" class="action-panel-form" style="margin-top:10px">
+                <div class="action-inline-row">
+                  <div class="field-valor">
+                    <input type="number" id="a-valor" step="0.01" required
+                           value="${diff.toFixed(2)}" placeholder="Valor (R$)" />
+                    <div class="help">Esperado: ${fmtMoney(diff)}</div>
+                  </div>
+                  <div class="field-file">
+                    <div class="dropzone dropzone-sm" id="dz-action">
+                      <div class="dz-icon">${Icons.upload}</div>
+                      <div class="dz-title">Comprovante complementar</div>
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" id="file-action" />
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-danger">Enviar complemento${Icons.chevronR}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
     ` : ''}
 
@@ -537,6 +558,112 @@ Screens.verVendaBind = function(id) {
       r.history.push({ when: ts, who: 'Sistema', what: 'Venda liberada para aprovação de cota' });
       toast(`Chamado aberto · ${r.nomeCliente} pronto para aprovação`, 'success');
       Router.refresh();
+    });
+  }
+
+  // Modal de cobrança complementar
+  const btnGerar = document.getElementById('btn-gerar-cobranca');
+  if (btnGerar) {
+    btnGerar.addEventListener('click', () => {
+      const valor = r.valorReal - r.valorComprovante;
+      const pixKey = '11.222.333/0001-44';
+      const pixCode = `00020126580014BR.GOV.BCB.PIX0136${pixKey}5204000053039865406${valor.toFixed(2).replace('.', '')}5802BR5914Porto Vale PIX6009SAO PAULO62070503***6304ABCD`;
+      const boletoCode = `34191.09008 61713.190002 61990.190004 8 97430000${Math.round(valor * 100).toString().padStart(10,'0')}`;
+
+      openModal('Gerar cobrança complementar', `
+        <div class="cobr-tabs">
+          <button class="cobr-tab active" data-cobr="pix">PIX</button>
+          <button class="cobr-tab" data-cobr="boleto">Boleto</button>
+        </div>
+
+        <div class="cobr-panel" id="cobr-pix">
+          <div class="cobr-valor">Cobrança de <strong>${fmtMoney(valor)}</strong></div>
+          <div class="cobr-qr">
+            <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="160" height="160" fill="white"/>
+              <rect x="10" y="10" width="50" height="50" rx="4" fill="#1A3A5C"/>
+              <rect x="18" y="18" width="34" height="34" rx="2" fill="white"/>
+              <rect x="24" y="24" width="22" height="22" rx="1" fill="#1A3A5C"/>
+              <rect x="100" y="10" width="50" height="50" rx="4" fill="#1A3A5C"/>
+              <rect x="108" y="18" width="34" height="34" rx="2" fill="white"/>
+              <rect x="114" y="24" width="22" height="22" rx="1" fill="#1A3A5C"/>
+              <rect x="10" y="100" width="50" height="50" rx="4" fill="#1A3A5C"/>
+              <rect x="18" y="108" width="34" height="34" rx="2" fill="white"/>
+              <rect x="24" y="114" width="22" height="22" rx="1" fill="#1A3A5C"/>
+              <rect x="70" y="10" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="82" y="10" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="22" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="82" y="22" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="34" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="70" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="82" y="70" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="82" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="82" y="82" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="94" y="70" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="106" y="70" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="118" y="70" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="130" y="70" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="94" y="82" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="118" y="82" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="106" y="94" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="130" y="94" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="94" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="82" y="106" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="94" y="106" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="118" y="106" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="118" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="94" y="118" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="106" y="118" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="130" y="118" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="70" y="130" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="82" y="130" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="118" y="130" width="8" height="8" fill="#1A3A5C"/>
+              <rect x="142" y="130" width="8" height="8" fill="#1A3A5C"/>
+            </svg>
+          </div>
+          <div class="cobr-code-wrap">
+            <code class="cobr-code" id="pix-code">${pixCode.slice(0,40)}…</code>
+            <button class="btn btn-secondary btn-sm" id="btn-copy-pix">Copiar código PIX</button>
+          </div>
+          <div class="cobr-hint">Chave PIX: ${pixKey}</div>
+        </div>
+
+        <div class="cobr-panel" id="cobr-boleto" style="display:none">
+          <div class="cobr-valor">Cobrança de <strong>${fmtMoney(valor)}</strong></div>
+          <div class="cobr-barcode">
+            <svg width="280" height="64" viewBox="0 0 280 64" xmlns="http://www.w3.org/2000/svg">
+              ${Array.from({length: 60}, (_,i) => {
+                const w = (i % 3 === 0) ? 3 : (i % 5 === 0) ? 1 : 2;
+                const x = i * 4 + 10;
+                return `<rect x="${x}" y="8" width="${w}" height="48" fill="#1A3A5C"/>`;
+              }).join('')}
+            </svg>
+          </div>
+          <div class="cobr-code-wrap">
+            <code class="cobr-code" id="boleto-code">${boletoCode}</code>
+            <button class="btn btn-secondary btn-sm" id="btn-copy-boleto">Copiar linha digitável</button>
+          </div>
+          <div class="cobr-hint">Vencimento: em 3 dias úteis</div>
+        </div>
+      `);
+
+      // Tabs
+      document.querySelectorAll('.cobr-tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.cobr-tab').forEach(x => x.classList.remove('active'));
+          t.classList.add('active');
+          document.getElementById('cobr-pix').style.display   = t.dataset.cobr === 'pix'    ? '' : 'none';
+          document.getElementById('cobr-boleto').style.display = t.dataset.cobr === 'boleto' ? '' : 'none';
+        });
+      });
+      document.getElementById('btn-copy-pix')?.addEventListener('click', () => {
+        navigator.clipboard?.writeText(pixCode);
+        toast('Código PIX copiado!', 'success');
+      });
+      document.getElementById('btn-copy-boleto')?.addEventListener('click', () => {
+        navigator.clipboard?.writeText(boletoCode);
+        toast('Linha digitável copiada!', 'success');
+      });
     });
   }
 
@@ -869,7 +996,7 @@ Screens.dashboard = function() {
     { label: 'Aguardando contrato',   value: counts.aguardando_contrato,    status: 'aguardando_contrato',   accent: 'blue' },
     { label: 'Diferença pendente',    value: counts.diferenca_pendente,     status: 'diferenca_pendente',    accent: 'orange' },
     { label: 'Pronto para aprovação', value: counts.pronto,                 status: 'pronto',                accent: 'green' },
-    { label: 'Concluídas',            value: counts.concluida,              status: 'concluida',             accent: 'teal' },
+    { label: 'Concluídas',            value: counts.concluida,              status: 'concluida',             accent: 'skyblue' },
   ];
 
   return renderShell(`
@@ -879,8 +1006,10 @@ Screens.dashboard = function() {
         <p class="page-subtitle">${State.campaign.name} · visão geral</p>
       </div>
       <div class="page-actions">
-        <a href="#/importar-extrato" class="btn btn-secondary">Importar extrato</a>
-        <a href="#/conciliacao" class="btn btn-primary">Vincular PIX ${counts.aguardando_financeiro + counts.orfaos ? `· ${counts.aguardando_financeiro + counts.orfaos}` : ''}</a>
+        <button class="btn btn-secondary" id="btn-exportar-fin">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar relatório
+        </button>
       </div>
     </div>
 
@@ -917,6 +1046,7 @@ Screens.dashboardBind = function() {
   bindSearchFilter();
   bindVendaCardActions();
   bindHierarchyFilters();
+  bindExportBtn('btn-exportar-fin', 'financeiro');
 };
 
 /* --- Importar Extrato --- */
@@ -1480,6 +1610,12 @@ Screens.aprovacoes = function() {
         <h1 class="page-title">Aprovações</h1>
         <p class="page-subtitle">${State.campaign.name}</p>
       </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary" id="btn-exportar-aprov">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar relatório
+        </button>
+      </div>
     </div>
 
     <div class="summary-grid" style="grid-template-columns:repeat(3,1fr);max-width:640px;margin-bottom:28px">
@@ -1493,7 +1629,7 @@ Screens.aprovacoes = function() {
         <div class="value">${prontos.length}</div>
         <div class="hint">Prontas para lançar cota</div>
       </button>
-      <button class="summary-card accent-teal ${activeTab === 'concluida' ? 'active' : ''}" data-aprov-tab="concluida">
+      <button class="summary-card accent-skyblue ${activeTab === 'concluida' ? 'active' : ''}" data-aprov-tab="concluida">
         <div class="label">Concluídas</div>
         <div class="value">${concluidas.length}</div>
         <div class="hint">Cotas já lançadas</div>
@@ -1511,6 +1647,7 @@ Screens.aprovacoesBind = function() {
 
   bindSortFilter();
   bindSearchFilter();
+  bindExportBtn('btn-exportar-aprov', 'aprovacao');
 
   document.querySelectorAll('[data-aprov-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2029,4 +2166,111 @@ function bindVendaCardActions() {
       });
     });
   });
+}
+
+/* ==================== EXPORTAR RELATÓRIO ==================== */
+
+function openExportModal(tipo) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const mesInicio = hoje.slice(0, 8) + '01';
+
+  const colunasFin   = ['ID', 'Campanha', 'Comercial', 'Vendedor', 'Pagador', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Status', 'Data/Hora', 'Extrato', 'Cota'];
+  const colunasAprov = ['ID', 'Campanha', 'Comercial', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Cota', 'Status', 'Data/Hora'];
+  const colunas = tipo === 'financeiro' ? colunasFin : colunasAprov;
+
+  openModal('Exportar relatório', `
+    <div class="export-modal">
+      <div class="export-section">
+        <div class="export-section-title">Período</div>
+        <div class="export-date-row">
+          <div class="export-field">
+            <label>De</label>
+            <input type="date" id="exp-de" value="${mesInicio}" class="filter-input" style="min-width:0" />
+          </div>
+          <div class="export-field">
+            <label>Até</label>
+            <input type="date" id="exp-ate" value="${hoje}" class="filter-input" style="min-width:0" />
+          </div>
+        </div>
+      </div>
+
+      <div class="export-section">
+        <div class="export-section-title">Status</div>
+        <div class="export-status-grid" id="exp-status-grid">
+          ${Object.entries(STATUS_LABEL).map(([k, v]) => `
+            <label class="export-check">
+              <input type="checkbox" value="${k}" checked /> ${v}
+            </label>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="export-section">
+        <div class="export-section-title">Colunas incluídas</div>
+        <div class="export-cols">${colunas.map(c => `<span class="export-col-tag">${c}</span>`).join('')}</div>
+      </div>
+
+      <div class="export-preview" id="exp-preview">
+        Calculando registros…
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" data-modal-close>Cancelar</button>
+    <button class="btn btn-primary" id="btn-baixar-rel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Baixar Excel (.csv)
+    </button>
+  `);
+
+  function getRegistros() {
+    const de  = document.getElementById('exp-de').value;
+    const ate = document.getElementById('exp-ate').value;
+    const statusSel = [...document.querySelectorAll('#exp-status-grid input:checked')].map(i => i.value);
+    return RECORDS.filter(r => {
+      const data = r.dataHora.slice(0, 10);
+      return data >= de && data <= ate && statusSel.includes(r.status);
+    });
+  }
+
+  function atualizarPreview() {
+    const n = getRegistros().length;
+    document.getElementById('exp-preview').textContent = `${n} registro${n !== 1 ? 's' : ''} encontrado${n !== 1 ? 's' : ''} com os filtros selecionados`;
+  }
+
+  atualizarPreview();
+  document.getElementById('exp-de').addEventListener('change', atualizarPreview);
+  document.getElementById('exp-ate').addEventListener('change', atualizarPreview);
+  document.querySelectorAll('#exp-status-grid input').forEach(i => i.addEventListener('change', atualizarPreview));
+
+  document.getElementById('btn-baixar-rel').addEventListener('click', () => {
+    const registros = getRegistros();
+    const de  = document.getElementById('exp-de').value;
+    const ate = document.getElementById('exp-ate').value;
+
+    const linhas = tipo === 'financeiro'
+      ? registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeVendedor, r.nomePagador, r.nomeCliente,
+          r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
+          STATUS_LABEL[r.status] ?? r.status, r.dataHora,
+          r.extrato ? 'Sim' : 'Não', r.contrato?.cota ?? ''].join(';'))
+      : registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeCliente,
+          r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
+          r.contrato?.cota ?? '', STATUS_LABEL[r.status] ?? r.status, r.dataHora].join(';'));
+
+    const cabecalho = (tipo === 'financeiro' ? colunasFin : colunasAprov).join(';');
+    const csv = '﻿' + cabecalho + '\n' + linhas.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `relatorio_${tipo}_${de}_${ate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeModal();
+    toast(`Relatório exportado · ${registros.length} registros`, 'success');
+  });
+}
+
+function bindExportBtn(idBtn, tipo) {
+  const btn = document.getElementById(idBtn);
+  if (btn) btn.addEventListener('click', () => openExportModal(tipo));
 }
