@@ -224,9 +224,21 @@ Screens.novaPrevenda = function() {
             <textarea id="f-obs" placeholder="Informações adicionais para o financeiro ou aprovação de cota"></textarea>
           </div>
 
+          <div class="form-field full">
+            <label>Prioridade</label>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+                <input type="radio" name="prioridade" value="normal" checked style="width:15px;height:15px;accent-color:var(--navy)"> Normal
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+                <input type="radio" name="prioridade" value="urgente" style="width:15px;height:15px;accent-color:var(--navy)"> 🚩 Urgente
+              </label>
+            </div>
+          </div>
+
         </div>
 
-        <div class="row between" style="margin-top:20px">
+        <div class="row between" style="margin-top:20px;align-items:center">
           <a href="#/minhas-vendas" class="btn btn-ghost">${Icons.chevronL}Cancelar</a>
           <button type="submit" class="btn btn-primary btn-lg">Registrar pré-venda</button>
         </div>
@@ -242,6 +254,8 @@ Screens.novaPrevendaBind = function() {
       btn.classList.add('active');
     });
   });
+
+
 
   const dz = document.getElementById('dz-comp');
   const fi = document.getElementById('file-comp');
@@ -292,6 +306,7 @@ Screens.novaPrevendaBind = function() {
       comprovante: { fileName: fi.files[0]?.name || 'comprovante.pdf', uploadedAt: ts },
       observacao: document.getElementById('f-obs').value,
       status: 'aguardando_financeiro',
+      urgente: document.querySelector('input[name="prioridade"]:checked')?.value === 'urgente',
       extrato: null,
       valorReal: null,
       contrato: null,
@@ -350,7 +365,7 @@ Screens.minhasVendas = function() {
         <p>Tente ajustar os filtros ou crie uma nova pré-venda.</p>
       </div>
     ` : `
-      <div class="venda-list">
+      <div class="venda-list com-urgente">
         ${renderVendaListHeader(false)}
         ${filtered.map(r => renderVendaCard(r, 'gerente')).join('')}
       </div>
@@ -388,7 +403,7 @@ Screens.vendasConcluidas = function() {
         <p>${base.length === 0 ? 'As vendas aparecem aqui após a cota ser lançada.' : 'Tente ajustar a busca.'}</p>
       </div>
     ` : `
-      <div class="venda-list">
+      <div class="venda-list com-urgente">
         ${renderVendaListHeader(false)}
         ${filtered.map(r => renderVendaCard(r, 'gerente')).join('')}
       </div>
@@ -426,9 +441,17 @@ Screens.verVenda = function(id) {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
           <h1 class="page-title" style="margin:0">${r.nomeCliente}</h1>
           ${statusChip(r.status)}
+          ${r.urgente ? `<span class="badge-urgente">🚩 Urgente</span>` : ''}
         </div>
         <p class="page-subtitle">${r.id} · ${r.gerenteNome} · ${fmtDateTime(r.dataHora)}</p>
       </div>
+      ${isGerente ? `
+        <div class="page-actions">
+          <button class="btn ${r.urgente ? 'btn-danger' : 'btn-secondary'}" id="btn-urgente">
+            🚩 ${r.urgente ? 'Remover urgência' : 'Marcar como urgente'}
+          </button>
+        </div>
+      ` : ''}
     </div>
 
     ${needsContrato ? `
@@ -441,23 +464,27 @@ Screens.verVenda = function(id) {
           </div>
         </div>
         <form id="form-action" class="action-panel-form">
-          <div class="action-inline-row">
-            <div class="field-valor">
+          <div style="display:flex;gap:16px;align-items:flex-end;margin-top:12px">
+            <div class="form-field" style="width:200px;flex-shrink:0">
+              <label>Valor real (R$) <span class="muted" style="font-weight:400;font-size:11px">· pode diferir</span></label>
               <input type="number" id="a-valor" step="0.01" required
-                     value="${r.valorComprovante.toFixed(2)}" placeholder="Valor real (R$)" />
-              <div class="help">Pode diferir do comprovante</div>
+                     value="${r.valorComprovante.toFixed(2)}" placeholder="0,00" />
             </div>
-            <div class="field-valor" style="width:130px">
-              <input type="text" id="a-cota" required placeholder="Nº da cota" />
+            <div class="form-field" style="width:160px;flex-shrink:0">
+              <label>Nº do contrato</label>
+              <input type="text" id="a-numcontrato" required placeholder="Ex: 0908" value="${String(Math.floor(900 + Math.random() * 100)).padStart(4,'0')}" />
             </div>
-            <div class="field-file">
+            <div class="form-field" style="flex:1">
+              <label>Contrato assinado (PDF)</label>
               <div class="dropzone dropzone-sm" id="dz-action">
                 <div class="dz-icon">${Icons.upload}</div>
-                <div class="dz-title">Contrato (PDF)</div>
+                <div class="dz-title">Clique ou arraste o PDF aqui</div>
                 <input type="file" accept=".pdf" style="display:none" id="file-action" />
               </div>
             </div>
-            <button type="submit" class="btn btn-primary">Confirmar${Icons.chevronR}</button>
+            <div>
+              <button type="submit" class="btn btn-primary">Confirmar${Icons.chevronR}</button>
+            </div>
           </div>
         </form>
       </div>
@@ -495,20 +522,23 @@ Screens.verVenda = function(id) {
               <div class="apstep-title">Enviar comprovante do pagamento</div>
               <div class="apstep-desc">Após o cliente pagar, anexe o comprovante aqui</div>
               <form id="form-action" class="action-panel-form" style="margin-top:10px">
-                <div class="action-inline-row">
-                  <div class="field-valor">
+                <div style="display:flex;gap:16px;align-items:flex-end">
+                  <div class="form-field" style="width:200px;flex-shrink:0">
+                    <label>Valor pago (R$) <span class="muted" style="font-weight:400;font-size:11px">· esperado ${fmtMoney(diff)}</span></label>
                     <input type="number" id="a-valor" step="0.01" required
-                           value="${diff.toFixed(2)}" placeholder="Valor (R$)" />
-                    <div class="help">Esperado: ${fmtMoney(diff)}</div>
+                           value="${diff.toFixed(2)}" placeholder="0,00" />
                   </div>
-                  <div class="field-file">
+                  <div class="form-field" style="flex:1">
+                    <label>Comprovante complementar</label>
                     <div class="dropzone dropzone-sm" id="dz-action">
                       <div class="dz-icon">${Icons.upload}</div>
-                      <div class="dz-title">Comprovante complementar</div>
+                      <div class="dz-title">Clique ou arraste aqui</div>
                       <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" id="file-action" />
                     </div>
                   </div>
-                  <button type="submit" class="btn btn-danger">Enviar complemento${Icons.chevronR}</button>
+                  <div>
+                    <button type="submit" class="btn btn-danger">Enviar complemento${Icons.chevronR}</button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -545,6 +575,16 @@ Screens.verVendaBind = function(id) {
   if (!r) return;
 
   bindVendaCardActions();
+
+  // Urgência
+  const btnUrgente = document.getElementById('btn-urgente');
+  if (btnUrgente) {
+    btnUrgente.addEventListener('click', () => {
+      r.urgente = !r.urgente;
+      toast(r.urgente ? `🚩 ${r.nomeCliente} marcada como urgente` : `Urgência removida · ${r.nomeCliente}`, r.urgente ? 'error' : 'success');
+      Router.refresh();
+    });
+  }
 
   // Chamado de reembolso (overpayment em diferenca_pendente)
   const btnChamado = document.getElementById('btn-chamado');
@@ -698,19 +738,19 @@ Screens.verVendaBind = function(id) {
     const fileName = fi?.files[0]?.name || 'arquivo.pdf';
 
     if (r.status === 'aguardando_contrato') {
-      const cota = document.getElementById('a-cota').value;
+      const numContrato = document.getElementById('a-numcontrato').value;
       r.valorReal = valor;
-      r.contrato  = { fileName, uploadedAt: ts, cota };
+      r.contrato  = { fileName, uploadedAt: ts, numContrato };
 
       const diff = valor - r.valorComprovante;
       if (diff > 0.005) {
         r.status = 'diferenca_pendente';
-        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Cota ${cota}` });
+        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Contrato ${numContrato}` });
         r.history.push({ when: ts, who: 'Sistema', what: `Diferença detectada · cliente pagou ${fmtMoney(r.valorComprovante)} mas contrato exige ${fmtMoney(valor)} · aguardando comprovante complementar de ${fmtMoney(diff)}` });
         toast(`Contrato salvo · cobrança de ${fmtMoney(diff)} pendente`, 'error');
       } else {
         r.status = 'pronto';
-        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Cota ${cota}` });
+        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Contrato ${numContrato}` });
         if (diff < -0.005) r.history.push({ when: ts, who: 'Sistema', what: `Pagamento excede o contrato · ${fmtMoney(Math.abs(diff))} a devolver` });
         toast(`Contrato enviado · ${r.nomeCliente} pronto para aprovação`, 'success');
       }
@@ -780,8 +820,8 @@ Screens.enviarContrato = function(id) {
             </div>
 
             <div class="form-field">
-              <label>Número da cota <span class="req">*</span></label>
-              <input type="text" id="c-cota" required placeholder="Ex: 0892" />
+              <label>Número do contrato <span class="req">*</span></label>
+              <input type="text" id="c-numcontrato" required placeholder="Ex: 12345" value="${String(Math.floor(900 + Math.random() * 100)).padStart(4,'0')}" />
             </div>
 
             <div class="form-field">
@@ -828,22 +868,22 @@ Screens.enviarContratoBind = function(id) {
     if (!r) return;
 
     const valorReal = parseFloat(document.getElementById('c-valor').value);
-    const cota      = document.getElementById('c-cota').value;
+    const numContrato = document.getElementById('c-numcontrato').value;
     const fileName  = fi.files[0]?.name || 'contrato.pdf';
     const now       = new Date();
     const ts        = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
 
     r.valorReal = valorReal;
-    r.contrato  = { fileName, uploadedAt: ts, cota };
+    r.contrato  = { fileName, uploadedAt: ts, numContrato };
 
     const diff = valorReal - r.valorComprovante;
     if (diff > 0.005) {
       r.status = 'diferenca_pendente';
-      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Cota ${cota}` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Contrato ${numContrato}` });
       r.history.push({ when: ts, who: 'Sistema', what: `Diferença detectada · cliente pagou ${fmtMoney(r.valorComprovante)} mas contrato exige ${fmtMoney(valorReal)} · aguardando comprovante complementar de ${fmtMoney(diff)}` });
     } else {
       r.status = 'pronto';
-      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Cota ${cota}` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valorReal)} · Contrato ${numContrato}` });
       if (diff < -0.005) {
         r.history.push({ when: ts, who: 'Sistema', what: `Pagamento excede o valor do contrato · ${fmtMoney(Math.abs(diff))} a devolver ao cliente` });
       }
@@ -888,7 +928,7 @@ Screens.enviarComplemento = function(id) {
           <dt>Comprovante inicial</dt> <dd>${fmtMoney(r.valorComprovante)}</dd>
           <dt>Valor real (contrato)</dt><dd>${fmtMoney(r.valorReal)}</dd>
           <dt>Falta pagar</dt>          <dd style="color:var(--red);font-weight:700">${fmtMoney(diff)}</dd>
-          <dt>Cota</dt>                 <dd>${r.contrato?.cota || '—'}</dd>
+          <dt>Contrato</dt>                 <dd>${r.contrato?.numContrato || '—'}</dd>
         </dl>
         <div class="tag-warning" style="margin-top:14px">
           O cliente precisa pagar os <strong>${fmtMoney(diff)}</strong> restantes antes que a venda possa ser aprovada. Após o pagamento, envie o comprovante abaixo.
@@ -1032,7 +1072,7 @@ Screens.dashboard = function() {
         <p>Ajuste os filtros acima.</p>
       </div>
     ` : `
-      <div class="venda-list">
+      <div class="venda-list com-urgente">
         ${renderVendaListHeader(true)}
         ${records.map(r => renderVendaCard(r, 'financeiro')).join('')}
       </div>
@@ -1591,17 +1631,17 @@ Screens.aprovacoes = function() {
     const vis = applySearchSort(prontos);
     listaHTML = vis.length === 0
       ? `<div class="empty-state"><div class="ic">⊘</div><h3>${prontos.length === 0 ? 'Nenhuma venda pronta no momento' : 'Nenhum resultado'}</h3><p>${prontos.length === 0 ? 'As vendas aparecem aqui quando todos os documentos estão confirmados.' : 'Tente ajustar a busca.'}</p></div>`
-      : `<div class="venda-list">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
+      : `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
   } else if (activeTab === 'concluida') {
     const vis = applySearchSort(concluidas);
     listaHTML = vis.length === 0
       ? `<div class="empty-state"><div class="ic">✓</div><h3>${concluidas.length === 0 ? 'Nenhuma venda concluída ainda' : 'Nenhum resultado'}</h3><p>Tente ajustar a busca.</p></div>`
-      : `<div class="venda-list">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
+      : `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
   } else {
     const vis = applySearchSort(pendentes);
     listaHTML = vis.length === 0
       ? `<div class="empty-state"><div class="ic">✓</div><h3>${pendentes.length === 0 ? 'Todas chegaram aqui' : 'Nenhum resultado'}</h3><p>Tente ajustar a busca.</p></div>`
-      : `<div class="venda-list">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
+      : `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
   }
 
   return renderShell(`
@@ -1627,12 +1667,12 @@ Screens.aprovacoes = function() {
       <button class="summary-card accent-green ${activeTab === 'pronto' ? 'active' : ''}" data-aprov-tab="pronto">
         <div class="label">Aguardando aprovação</div>
         <div class="value">${prontos.length}</div>
-        <div class="hint">Prontas para lançar cota</div>
+        <div class="hint">Prontas para lançar contrato</div>
       </button>
       <button class="summary-card accent-skyblue ${activeTab === 'concluida' ? 'active' : ''}" data-aprov-tab="concluida">
         <div class="label">Concluídas</div>
         <div class="value">${concluidas.length}</div>
-        <div class="hint">Cotas já lançadas</div>
+        <div class="hint">Contratos já lançados</div>
       </button>
     </div>
 
@@ -1662,11 +1702,11 @@ Screens.aprovacoesBind = function() {
       const r  = findRecord(id);
       if (!r) return;
 
-      openModal(`Lançar cota · ${r.nomeCliente}`,
+      openModal(`Lançar contrato · ${r.nomeCliente}`,
         `<div class="form-grid" style="grid-template-columns:1fr">
           <div class="form-field">
-            <label>Número da cota <span class="req">*</span></label>
-            <input type="text" id="apr-cota" value="${r.contrato?.cota || ''}" placeholder="Ex: 0892" />
+            <label>Número do contrato <span class="req">*</span></label>
+            <input type="text" id="apr-numcontrato" value="${r.contrato?.numContrato || ''}" placeholder="Ex: 12345" />
           </div>
           <div class="form-field">
             <label>Observação</label>
@@ -1677,14 +1717,14 @@ Screens.aprovacoesBind = function() {
             <dt>Comprovante</dt><dd>${fmtMoney(r.valorComprovante)}</dd>
             <dt>Extrato</dt>    <dd>${r.extrato ? fmtMoney(r.extrato.valor) : '—'}</dd>
             <dt>Valor real</dt> <dd>${fmtMoney(r.valorReal)}</dd>
-            <dt>Cota</dt>       <dd>${r.contrato?.cota || '—'}</dd>
+            <dt>Contrato</dt>       <dd>${r.contrato?.numContrato || '—'}</dd>
           </dl>
         </div>`,
         `<button class="btn btn-secondary" data-modal-close>Cancelar</button>
-         <button class="btn btn-primary" id="confirmar-cota">Confirmar e concluir venda</button>`
+         <button class="btn btn-primary" id="confirmar-contrato">Confirmar e concluir venda</button>`
       );
 
-      document.getElementById('confirmar-cota').addEventListener('click', () => {
+      document.getElementById('confirmar-contrato').addEventListener('click', () => {
         const now = new Date();
         const ts  = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
         const obs = document.getElementById('apr-obs')?.value || '';
@@ -1693,7 +1733,7 @@ Screens.aprovacoesBind = function() {
         r.history.push({
           when: ts,
           who:  `${State.persona.name} (Aprovação)`,
-          what: `Cota lançada na administradora · venda concluída${obs ? ' · ' + obs : ''}`,
+          what: `Contrato lançado na administradora · venda concluída${obs ? ' · ' + obs : ''}`,
         });
 
         closeModal();
@@ -1791,6 +1831,7 @@ Screens.campanhasBind = function() {
 function renderVendaListHeader(showGerente) {
   return `
     <div class="venda-row venda-row-header">
+      <div class="vcol-urgente">Urgente</div>
       <div class="vcol-main">${showGerente ? 'Comercial · Cliente' : 'Cliente'}</div>
       <div class="vcol-doc">Comprovante</div>
       <div class="vcol-doc">Extrato</div>
@@ -1829,16 +1870,22 @@ function renderVendaCard(r, viewAs) {
   } else if (isMine && r.status === 'diferenca_pendente' && diff < -0.005) {
     action = `<a href="#/ver-venda/${r.id}" class="btn btn-warning btn-sm">Abrir chamado${Icons.chevronR}</a>`;
   } else if (viewAs === 'backoffice' && r.status === 'pronto') {
-    action = `<button class="btn btn-primary btn-sm" data-aprovar="${r.id}">Lançar cota${Icons.chevronR}</button>`;
+    action = `<button class="btn btn-primary btn-sm" data-aprovar="${r.id}">Lançar contrato${Icons.chevronR}</button>`;
   } else {
     action = `<a href="#/ver-venda/${r.id}" class="btn btn-ghost btn-sm">Ver${Icons.chevronR}</a>`;
   }
 
   return `
-    <div class="venda-row" data-record="${r.id}">
+    <div class="venda-row ${r.urgente ? 'urgente-row' : ''}" data-record="${r.id}">
+
+      <div class="vcol-urgente">
+        <input type="checkbox" class="check-urgente-row" data-id="${r.id}" ${r.urgente ? 'checked' : ''} title="Marcar como urgente">
+      </div>
 
       <div class="vcol-main">
-        <div class="venda-id">${r.id}${!r.mesmoNomeContrato ? `<span class="badge-pagador">Pagador ≠ titular</span>` : ''}</div>
+        <div class="venda-id">
+          ${r.id}${!r.mesmoNomeContrato ? `<span class="badge-pagador">Pagador ≠ titular</span>` : ''}
+        </div>
         <div class="venda-name">${r.nomeCliente}</div>
         <div class="venda-meta">${!isMine ? r.gerenteNome + ' · ' : ''}${fmtMoney(r.valorComprovante)} · ${fmtDateTime(r.dataHora)}</div>
       </div>
@@ -1878,7 +1925,7 @@ function renderAprovacaoCard(r) {
           <dt>Comprovante</dt> <dd>${fmtMoney(r.valorComprovante)} · ${r.comprovante?.fileName || '—'}</dd>
           <dt>Extrato</dt>     <dd>${r.extrato ? `${fmtMoney(r.extrato.valor)} · ${r.extrato.tipo === 'manual' ? 'vinculado manualmente' : 'automático'}` : '—'}</dd>
           <dt>Valor real</dt>  <dd>${fmtMoney(r.valorReal)}</dd>
-          <dt>Cota</dt>        <dd>${r.contrato?.cota || '—'}</dd>
+          <dt>Contrato</dt>        <dd>${r.contrato?.numContrato || '—'}</dd>
           ${valorDiff !== null && Math.abs(valorDiff) > 0.005 ? `
             <dt>Diferença</dt>
             <dd><span class="diff-badge ${valorDiff > 0 ? 'neg' : 'pos'}">${valorDiff > 0 ? '+' : ''}${fmtMoney(Math.abs(valorDiff))}</span></dd>
@@ -1888,7 +1935,7 @@ function renderAprovacaoCard(r) {
 
       <div class="aprov-card-footer">
         <button class="btn btn-ghost btn-sm" data-ver-aprov="${r.id}">Ver detalhes</button>
-        <button class="btn btn-primary" data-aprovar="${r.id}">Lançar cota${Icons.chevronR}</button>
+        <button class="btn btn-primary" data-aprovar="${r.id}">Lançar contrato${Icons.chevronR}</button>
       </div>
     </div>
   `;
@@ -1945,7 +1992,7 @@ function renderVendaDetalhe(r) {
           <div>
             <div style="font-weight:600">Contrato</div>
             ${r.contrato
-              ? `<div class="text-sm muted">${r.contrato.fileName} · Cota ${r.contrato.cota} · ${fmtDateTime(r.contrato.uploadedAt)}</div>`
+              ? `<div class="text-sm muted">${r.contrato.fileName} · Contrato ${r.contrato.numContrato} · ${fmtDateTime(r.contrato.uploadedAt)}</div>`
               : `<div class="text-sm muted">Aguardando envio pelo gerente</div>`}
           </div>
           <div class="cell-money">${r.valorReal !== null ? fmtMoney(r.valorReal) : '—'}</div>
@@ -1982,14 +2029,17 @@ function renderVendaDetalhe(r) {
 function renderSearchBar() {
   return `
     <div class="filters">
+      <input class="filter-input" placeholder="Buscar nome, valor, ID…"
+             value="${State.filter.search || ''}" data-filter-search />
       <div class="flex-grow"></div>
+      <button class="filter-pill ${State.filter.urgente ? 'active urgente-pill' : ''}" data-filter-urgente>
+        🚩 Urgentes
+      </button>
       <select class="filter-select" data-filter-sort>
         <option value="date_desc"  ${State.filter.sort === 'date_desc'  ? 'selected' : ''}>Mais recente primeiro</option>
         <option value="date_asc"   ${State.filter.sort === 'date_asc'   ? 'selected' : ''}>Mais antigo primeiro</option>
         <option value="value_desc" ${State.filter.sort === 'value_desc' ? 'selected' : ''}>Maior valor primeiro</option>
       </select>
-      <input class="filter-input" placeholder="Buscar nome, valor, ID…"
-             value="${State.filter.search || ''}" data-filter-search />
     </div>
   `;
 }
@@ -2006,8 +2056,13 @@ function applySearchSort(records) {
       String(r.valorComprovante).includes(q)
     );
   }
+  if (State.filter.urgente) {
+    out = out.filter(r => r.urgente);
+  }
   const sort = State.filter.sort || 'date_desc';
   out = [...out].sort((a, b) => {
+    if (a.urgente && !b.urgente) return -1;
+    if (!a.urgente && b.urgente) return 1;
     if (sort === 'date_asc')   return a.dataHora < b.dataHora ? -1 : 1;
     if (sort === 'date_desc')  return a.dataHora > b.dataHora ? -1 : 1;
     if (sort === 'value_desc') return b.valorComprovante - a.valorComprovante;
@@ -2048,6 +2103,9 @@ function renderPrevVendasFilters(showGerente = false) {
         </button>
       ` : ''}
       <div class="flex-grow"></div>
+      <button class="filter-pill ${State.filter.urgente ? 'active urgente-pill' : ''}" data-filter-urgente>
+        🚩 Urgentes
+      </button>
       ${showGerente ? `
         <select class="filter-select" data-filter-super>
           <option value="all">Todas as supts.</option>
@@ -2099,6 +2157,14 @@ function bindSearchFilter() {
       if (newInp) { newInp.focus(); newInp.setSelectionRange(inp.value.length, inp.value.length); }
     }, 250);
   });
+
+  const btnUrgente = document.querySelector('[data-filter-urgente]');
+  if (btnUrgente) {
+    btnUrgente.addEventListener('click', () => {
+      State.filter.urgente = !State.filter.urgente;
+      Router.refresh();
+    });
+  }
 }
 
 function bindHierarchyFilters() {
@@ -2123,6 +2189,17 @@ function bindHierarchyFilters() {
 }
 
 function bindVendaCardActions() {
+  document.querySelectorAll('.check-urgente-row').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const r = findRecord(chk.dataset.id);
+      if (!r) return;
+      r.urgente = chk.checked;
+      const row = chk.closest('.venda-row');
+      if (row) row.classList.toggle('urgente-row', r.urgente);
+      toast(r.urgente ? `🚩 ${r.nomeCliente} marcada como urgente` : `Urgência removida · ${r.nomeCliente}`, r.urgente ? 'error' : 'success');
+    });
+  });
+
   document.querySelectorAll('[data-reembolso]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -2174,8 +2251,8 @@ function openExportModal(tipo) {
   const hoje = new Date().toISOString().slice(0, 10);
   const mesInicio = hoje.slice(0, 8) + '01';
 
-  const colunasFin   = ['ID', 'Campanha', 'Comercial', 'Vendedor', 'Pagador', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Status', 'Data/Hora', 'Extrato', 'Cota'];
-  const colunasAprov = ['ID', 'Campanha', 'Comercial', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Cota', 'Status', 'Data/Hora'];
+  const colunasFin   = ['ID', 'Campanha', 'Comercial', 'Vendedor', 'Pagador', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Status', 'Data/Hora', 'Extrato', 'Nº Contrato'];
+  const colunasAprov = ['ID', 'Campanha', 'Comercial', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Nº Contrato', 'Status', 'Data/Hora'];
   const colunas = tipo === 'financeiro' ? colunasFin : colunasAprov;
 
   openModal('Exportar relatório', `
@@ -2251,10 +2328,10 @@ function openExportModal(tipo) {
       ? registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeVendedor, r.nomePagador, r.nomeCliente,
           r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
           STATUS_LABEL[r.status] ?? r.status, r.dataHora,
-          r.extrato ? 'Sim' : 'Não', r.contrato?.cota ?? ''].join(';'))
+          r.extrato ? 'Sim' : 'Não', r.contrato?.numContrato ?? ''].join(';'))
       : registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeCliente,
           r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
-          r.contrato?.cota ?? '', STATUS_LABEL[r.status] ?? r.status, r.dataHora].join(';'));
+          r.contrato?.numContrato ?? '', STATUS_LABEL[r.status] ?? r.status, r.dataHora].join(';'));
 
     const cabecalho = (tipo === 'financeiro' ? colunasFin : colunasAprov).join(';');
     const csv = '﻿' + cabecalho + '\n' + linhas.join('\n');

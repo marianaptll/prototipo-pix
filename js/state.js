@@ -85,8 +85,14 @@ function applyFilters(records) {
     return true;
   });
 
+  if (State.filter.urgente) {
+    filtered = filtered.filter(r => r.urgente);
+  }
+
   const sort = State.filter.sort || 'date_desc';
   filtered.sort((a, b) => {
+    if (a.urgente && !b.urgente) return -1;
+    if (!a.urgente && b.urgente) return 1;
     if (sort === 'date_asc')   return a.dataHora < b.dataHora ? -1 : 1;
     if (sort === 'date_desc')  return a.dataHora > b.dataHora ? -1 : 1;
     if (sort === 'value_desc') return b.valorComprovante - a.valorComprovante;
