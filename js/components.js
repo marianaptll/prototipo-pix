@@ -8,9 +8,9 @@ function renderShell(content, activeRoute) {
     <div class="app-shell">
       <header class="topbar">
         <div class="topbar-left">
-          <div class="topbar-logo">
+          <a href="#/home" class="topbar-logo">
             <img src="imagem/logo_portal_pv.webp" alt="Portal Porto Vale" class="logo-img" />
-          </div>
+          </a>
         </div>
         <div class="topbar-right">
           ${State.persona ? renderPersonaSwitch() : ''}
@@ -30,7 +30,7 @@ function renderShell(content, activeRoute) {
         </div>
       </header>
 
-      ${State.persona ? renderSubnav(activeRoute, counts) : ''}
+      ${State.persona && activeRoute !== null ? renderSubnav(activeRoute, counts) : ''}
 
       <main class="main">${content}</main>
     </div>
@@ -49,7 +49,7 @@ function renderPersonaSwitch() {
         <button class="${curr && curr.id === p.id ? 'active' : ''}"
                 data-action="switch-persona" data-persona="${p.id}"
                 title="${p.name} · ${p.role}">
-          ${p.role === 'Financeiro' ? 'Financeiro' : 'Aprovação'}
+          ${p.role === 'Fase 1' ? 'Fase 1' : 'Fase 2'}
         </button>
       `).join('')}
     </div>
@@ -76,7 +76,7 @@ function renderSubnav(active, counts) {
     ];
   } else {
     links = [
-      { href: '#/aprovacoes', icon: Icons.complete, label: 'Aprovações', key: 'aprovacoes', badge: counts.pronto },
+      { href: '#/aprovacoes', icon: Icons.complete, label: 'Fase 2', key: 'aprovacoes', badge: counts.pronto },
       { href: '#/campanhas',  icon: Icons.list,     label: 'Campanhas',  key: 'campanhas' },
     ];
   }

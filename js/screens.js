@@ -4,6 +4,26 @@
 
 const Screens = {};
 
+/* ==================== HOME HUB ==================== */
+
+Screens.home = function() {
+  return renderShell(`
+    <div class="hub-content">
+      <button class="hub-card" id="hub-btn-pix">
+        <div class="hub-card-icon">PIX</div>
+        <div class="hub-card-label">Pré-Venda PIX</div>
+      </button>
+    </div>
+  `, null);
+};
+
+Screens.homeBind = function() {
+  document.getElementById('hub-btn-pix').addEventListener('click', () => {
+    const dest = Router._homeRoute();
+    location.hash = dest === 'login' ? '#/login' : '#/' + dest;
+  });
+};
+
 /* ==================== LOGIN ==================== */
 
 Screens.login = function() {
@@ -224,17 +244,6 @@ Screens.novaPrevenda = function() {
             <textarea id="f-obs" placeholder="Informações adicionais para o financeiro ou aprovação de cota"></textarea>
           </div>
 
-          <div class="form-field full">
-            <label>Prioridade</label>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
-                <input type="radio" name="prioridade" value="normal" checked style="width:15px;height:15px;accent-color:var(--navy)"> Normal
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
-                <input type="radio" name="prioridade" value="urgente" style="width:15px;height:15px;accent-color:var(--navy)"> 🚩 Urgente
-              </label>
-            </div>
-          </div>
 
         </div>
 
@@ -306,7 +315,7 @@ Screens.novaPrevendaBind = function() {
       comprovante: { fileName: fi.files[0]?.name || 'comprovante.pdf', uploadedAt: ts },
       observacao: document.getElementById('f-obs').value,
       status: 'aguardando_financeiro',
-      urgente: document.querySelector('input[name="prioridade"]:checked')?.value === 'urgente',
+      urgente: false,
       extrato: null,
       valorReal: null,
       contrato: null,
@@ -322,9 +331,12 @@ Screens.novaPrevendaBind = function() {
 /* --- Minhas Vendas --- */
 
 Screens.minhasVendas = function() {
-  const myRecords = RECORDS.filter(r => r.gerenteId === State.persona.id);
-  const filtered  = applyFilters(myRecords);
-  const counts    = getCounts(myRecords);
+  const myRecords   = RECORDS.filter(r => r.gerenteId === State.persona.id);
+  const allFiltered = applyFilters(myRecords);
+  const counts      = getCounts(myRecords);
+  const page        = State.filter.page     || 1;
+  const pageSize    = State.filter.pageSize || 15;
+  const filtered    = allFiltered.slice((page - 1) * pageSize, page * pageSize);
 
   const summary = [
     { label: 'Total',                value: counts.total,                 status: 'all',                   accent: '' },
@@ -357,18 +369,20 @@ Screens.minhasVendas = function() {
     </div>
 
     ${renderPrevVendasFilters()}
+    ${renderResultCount(allFiltered.length, counts.total)}
 
-    ${filtered.length === 0 ? `
+    ${allFiltered.length === 0 ? `
       <div class="empty-state">
         <div class="ic">⊘</div>
         <h3>Nenhuma venda encontrada</h3>
         <p>Tente ajustar os filtros ou crie uma nova pré-venda.</p>
       </div>
     ` : `
-      <div class="venda-list com-urgente">
+      <div class="venda-list">
         ${renderVendaListHeader(false)}
         ${filtered.map(r => renderVendaCard(r, 'gerente')).join('')}
       </div>
+      ${renderPagination(allFiltered.length, page, pageSize)}
     `}
   `, 'minhas-vendas');
 };
@@ -378,6 +392,7 @@ Screens.minhasVendasBind = function() {
   bindSortFilter();
   bindSearchFilter();
   bindVendaCardActions();
+  bindPagination();
 };
 
 /* --- Vendas Concluídas --- */
@@ -403,7 +418,7 @@ Screens.vendasConcluidas = function() {
         <p>${base.length === 0 ? 'As vendas aparecem aqui após a cota ser lançada.' : 'Tente ajustar a busca.'}</p>
       </div>
     ` : `
-      <div class="venda-list com-urgente">
+      <div class="venda-list">
         ${renderVendaListHeader(false)}
         ${filtered.map(r => renderVendaCard(r, 'gerente')).join('')}
       </div>
@@ -425,7 +440,8 @@ Screens.verVenda = function(id) {
     return renderShell(`<div class="empty-state"><h3>Registro não encontrado</h3></div>`, '');
   }
 
-  const isGerente  = State.persona.role === 'Comercial';
+  const isGerente       = State.persona.role === 'Comercial';
+  const canMarkUrgente  = State.persona.role === 'Fase 1' || State.persona.role === 'Fase 2';
   const backRoute  = isGerente ? '#/minhas-vendas'
     : (State.persona.id === 'financeiro' ? '#/dashboard' : '#/aprovacoes');
 
@@ -445,7 +461,7 @@ Screens.verVenda = function(id) {
         </div>
         <p class="page-subtitle">${r.id} · ${r.gerenteNome} · ${fmtDateTime(r.dataHora)}</p>
       </div>
-      ${isGerente ? `
+      ${canMarkUrgente && r.status !== 'concluida' ? `
         <div class="page-actions">
           <button class="btn ${r.urgente ? 'btn-danger' : 'btn-secondary'}" id="btn-urgente">
             🚩 ${r.urgente ? 'Remover urgência' : 'Marcar como urgente'}
@@ -600,6 +616,77 @@ Screens.verVendaBind = function(id) {
       Router.refresh();
     });
   }
+
+  // Visualizar documentos
+  document.querySelectorAll('[data-ver-doc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tipo = btn.dataset.verDoc;
+      let titulo, conteudo;
+
+      if (tipo === 'comp' && r.comprovante) {
+        titulo = `Comprovante · ${r.comprovante.fileName}`;
+        conteudo = `
+          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
+            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">COMPROVANTE DE TRANSFERÊNCIA PIX</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+              <span style="color:#888">Tipo</span><span>PIX</span>
+              <span style="color:#888">Valor</span><span style="font-weight:700">${fmtMoney(r.valorComprovante)}</span>
+              <span style="color:#888">Pagador</span><span>${r.nomePagador}</span>
+              <span style="color:#888">Favorecido</span><span>Porto Vale Consórcios</span>
+              <span style="color:#888">Data/Hora</span><span>${fmtDateTime(r.dataHora)}</span>
+              <span style="color:#888">Enviado em</span><span>${fmtDateTime(r.comprovante.uploadedAt)}</span>
+            </div>
+          </div>`;
+      } else if (tipo === 'ext' && r.extrato) {
+        titulo = `Extrato bancário · ${r.extrato.remetente}`;
+        conteudo = `
+          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
+            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">LANÇAMENTO — EXTRATO BANCÁRIO</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+              <span style="color:#888">Remetente</span><span>${r.extrato.remetente}</span>
+              <span style="color:#888">Valor</span><span style="font-weight:700">${fmtMoney(r.extrato.valor)}</span>
+              <span style="color:#888">Tipo</span><span>${r.extrato.tipo === 'manual' ? 'Vinculado manualmente' : 'Vinculado automaticamente'}</span>
+              <span style="color:#888">Conta</span><span>Porto Vale — C/C 12345-6</span>
+            </div>
+          </div>`;
+      } else if (tipo === 'cont' && r.contrato) {
+        titulo = `Contrato · ${r.contrato.fileName}`;
+        conteudo = `
+          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
+            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">CONTRATO DE CONSÓRCIO</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+              <span style="color:#888">Nº Contrato</span><span style="font-weight:700">${r.contrato.numContrato}</span>
+              <span style="color:#888">Cliente</span><span>${r.nomeCliente}</span>
+              <span style="color:#888">Valor</span><span>${fmtMoney(r.valorReal)}</span>
+              <span style="color:#888">Arquivo</span><span>${r.contrato.fileName}</span>
+              <span style="color:#888">Enviado em</span><span>${fmtDateTime(r.contrato.uploadedAt)}</span>
+            </div>
+          </div>`;
+      } else if (tipo === 'remessa' && r.remessaId) {
+        const rem = REMESSAS.find(x => x.id === r.remessaId);
+        titulo = `Comprovante · ${rem?.id}`;
+        conteudo = `
+          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
+            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">COMPROVANTE DE PAGAMENTO — PORTO SEGURO</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+              <span style="color:#888">Remessa</span><span style="font-weight:700">${rem?.id}</span>
+              <span style="color:#888">Data</span><span>${rem ? fmtDateTime(rem.data) : '—'}</span>
+              <span style="color:#888">Pagador</span><span>Porto Vale Consórcios</span>
+              <span style="color:#888">Favorecido</span><span>Porto Seguro S/A</span>
+              <span style="color:#888">Valor total</span><span style="font-weight:700">${rem ? fmtMoney(rem.total) : '—'}</span>
+              <span style="color:#888">Vendas</span><span>${rem ? rem.vendas.join(', ') : '—'}</span>
+              <span style="color:#888">Arquivo</span><span>${rem?.comprovante || '—'}</span>
+              <span style="color:#888">Fechado por</span><span>${rem?.criadoPor || '—'}</span>
+            </div>
+          </div>`;
+      }
+
+      openModal(titulo, conteudo,
+        `<button class="btn btn-secondary" data-modal-close>Fechar</button>
+         <button class="btn btn-primary" onclick="toast('Download iniciado','success');closeModal()">⬇ Baixar</button>`
+      );
+    });
+  });
 
   // Modal de cobrança complementar
   const btnGerar = document.getElementById('btn-gerar-cobranca');
@@ -1027,8 +1114,11 @@ Screens.enviarComplementoBind = function(id) {
 /* --- Dashboard --- */
 
 Screens.dashboard = function() {
-  const records = applyFilters(RECORDS);
-  const counts  = getCounts(RECORDS);
+  const allFiltered = applyFilters(RECORDS);
+  const counts      = getCounts(RECORDS);
+  const page        = State.filter.page     || 1;
+  const pageSize    = State.filter.pageSize || 15;
+  const records     = allFiltered.slice((page - 1) * pageSize, page * pageSize);
 
   const summary = [
     { label: 'Total de pré-vendas',   value: counts.total,                 status: 'all',                   accent: '' },
@@ -1064,8 +1154,9 @@ Screens.dashboard = function() {
     </div>
 
     ${renderPrevVendasFilters(true)}
+    ${renderResultCount(allFiltered.length, counts.total)}
 
-    ${records.length === 0 ? `
+    ${allFiltered.length === 0 ? `
       <div class="empty-state">
         <div class="ic">⊘</div>
         <h3>Nenhum registro encontrado</h3>
@@ -1076,6 +1167,7 @@ Screens.dashboard = function() {
         ${renderVendaListHeader(true)}
         ${records.map(r => renderVendaCard(r, 'financeiro')).join('')}
       </div>
+      ${renderPagination(allFiltered.length, page, pageSize)}
     `}
   `, 'dashboard');
 };
@@ -1087,6 +1179,7 @@ Screens.dashboardBind = function() {
   bindVendaCardActions();
   bindHierarchyFilters();
   bindExportBtn('btn-exportar-fin', 'financeiro');
+  bindPagination();
 };
 
 /* --- Importar Extrato --- */
@@ -1588,7 +1681,7 @@ Screens.conciliacaoBind = function() {
 
     if (isCompl) {
       r.extratoComplementar = { remetente: orphan.remetente, valor: orphan.valor, dataHora: orphan.dataHora, tipo: 'manual' };
-      r.history.push({ when: ts, who: `${State.persona.name} (Financeiro)`, what: `Extrato complementar vinculado · ${orphan.remetente} · ${fmtMoney(orphan.valor)}` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Fase 1)`, what: `Extrato complementar vinculado · ${orphan.remetente} · ${fmtMoney(orphan.valor)}` });
       const totalPago = r.valorComprovante + r.comprovanteComplementar.valor;
       if (totalPago >= r.valorReal - 0.005) {
         r.status = 'pronto';
@@ -1602,7 +1695,7 @@ Screens.conciliacaoBind = function() {
     } else {
       r.extrato = { remetente: orphan.remetente, valor: orphan.valor, dataHora: orphan.dataHora, tipo: 'manual' };
       r.status  = 'aguardando_contrato';
-      r.history.push({ when: ts, who: `${State.persona.name} (Financeiro)`, what: `PIX vinculado manualmente · ${orphan.remetente} · ${fmtMoney(orphan.valor)}` });
+      r.history.push({ when: ts, who: `${State.persona.name} (Fase 1)`, what: `PIX vinculado manualmente · ${orphan.remetente} · ${fmtMoney(orphan.valor)}` });
       toast(`Vinculado: ${r.nomePagador} ↔ ${orphan.remetente}`, 'success');
     }
 
@@ -1625,29 +1718,54 @@ Screens.aprovacoes = function() {
   const pendentes  = campRecs.filter(r => !['pronto','concluida'].includes(r.status));
 
   const activeTab = State.filter.aprovTab || 'pronto';
+  const page      = State.filter.page     || 1;
+  const pageSize  = State.filter.pageSize || 15;
+
+  function buildTabHTML(allVis, emptyIcon, emptyMsg, emptyHint) {
+    if (allVis.length === 0) {
+      return `<div class="empty-state"><div class="ic">${emptyIcon}</div><h3>${emptyMsg}</h3><p>${emptyHint}</p></div>`;
+    }
+    const pageSlice = allVis.slice((page - 1) * pageSize, page * pageSize);
+    return `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${pageSlice.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>
+            ${renderPagination(allVis.length, page, pageSize)}`;
+  }
+
+  const totalRemessa = prontos.reduce((s, r) => s + (r.valorComprovante || 0), 0);
+  const remessaPanel = activeTab === 'pronto' && prontos.length > 0 ? `
+    <div class="action-panel action-panel-blue" style="margin-bottom:20px">
+      <div class="action-panel-label">
+        <div class="action-panel-icon">✦</div>
+        <div>
+          <div class="action-panel-title">Fechar remessa do dia</div>
+          <div class="action-panel-desc">${prontos.length} venda${prontos.length !== 1 ? 's' : ''} pronta${prontos.length !== 1 ? 's' : ''} · Total a pagar à Porto Seguro: <strong>${fmtMoney(totalRemessa)}</strong></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-fechar-remessa">Fechar remessa${Icons.chevronR}</button>
+    </div>
+  ` : '';
 
   let listaHTML;
   if (activeTab === 'pronto') {
     const vis = applySearchSort(prontos);
-    listaHTML = vis.length === 0
-      ? `<div class="empty-state"><div class="ic">⊘</div><h3>${prontos.length === 0 ? 'Nenhuma venda pronta no momento' : 'Nenhum resultado'}</h3><p>${prontos.length === 0 ? 'As vendas aparecem aqui quando todos os documentos estão confirmados.' : 'Tente ajustar a busca.'}</p></div>`
-      : `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
+    listaHTML = buildTabHTML(vis, '⊘',
+      prontos.length === 0 ? 'Nenhuma venda pronta no momento' : 'Nenhum resultado',
+      prontos.length === 0 ? 'As vendas aparecem aqui quando todos os documentos estão confirmados.' : 'Tente ajustar a busca.');
   } else if (activeTab === 'concluida') {
     const vis = applySearchSort(concluidas);
-    listaHTML = vis.length === 0
-      ? `<div class="empty-state"><div class="ic">✓</div><h3>${concluidas.length === 0 ? 'Nenhuma venda concluída ainda' : 'Nenhum resultado'}</h3><p>Tente ajustar a busca.</p></div>`
-      : `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
+    listaHTML = buildTabHTML(vis, '✓',
+      concluidas.length === 0 ? 'Nenhuma venda concluída ainda' : 'Nenhum resultado',
+      'Tente ajustar a busca.');
   } else {
     const vis = applySearchSort(pendentes);
-    listaHTML = vis.length === 0
-      ? `<div class="empty-state"><div class="ic">✓</div><h3>${pendentes.length === 0 ? 'Todas chegaram aqui' : 'Nenhum resultado'}</h3><p>Tente ajustar a busca.</p></div>`
-      : `<div class="venda-list com-urgente">${renderVendaListHeader(true)}${vis.map(r => renderVendaCard(r, 'backoffice')).join('')}</div>`;
+    listaHTML = buildTabHTML(vis, '✓',
+      pendentes.length === 0 ? 'Todas chegaram aqui' : 'Nenhum resultado',
+      'Tente ajustar a busca.');
   }
 
   return renderShell(`
     <div class="page-header">
       <div>
-        <h1 class="page-title">Aprovações</h1>
+        <h1 class="page-title">Fase 2 · Remessas</h1>
         <p class="page-subtitle">${State.campaign.name}</p>
       </div>
       <div class="page-actions">
@@ -1665,18 +1783,20 @@ Screens.aprovacoes = function() {
         <div class="hint">Ainda não chegaram aqui</div>
       </button>
       <button class="summary-card accent-green ${activeTab === 'pronto' ? 'active' : ''}" data-aprov-tab="pronto">
-        <div class="label">Aguardando aprovação</div>
+        <div class="label">Prontas para remessa</div>
         <div class="value">${prontos.length}</div>
-        <div class="hint">Prontas para lançar contrato</div>
+        <div class="hint">Aguardando fechamento da remessa</div>
       </button>
       <button class="summary-card accent-skyblue ${activeTab === 'concluida' ? 'active' : ''}" data-aprov-tab="concluida">
         <div class="label">Concluídas</div>
         <div class="value">${concluidas.length}</div>
-        <div class="hint">Contratos já lançados</div>
+        <div class="hint">Incluídas em remessa Porto Seguro</div>
       </button>
     </div>
 
     ${renderSearchBar()}
+
+    ${remessaPanel}
 
     ${listaHTML}
   `, 'aprovacoes');
@@ -1687,61 +1807,89 @@ Screens.aprovacoesBind = function() {
 
   bindSortFilter();
   bindSearchFilter();
+  bindPagination();
   bindExportBtn('btn-exportar-aprov', 'aprovacao');
 
   document.querySelectorAll('[data-aprov-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       State.filter.aprovTab = btn.dataset.aprovTab;
+      State.filter.page = 1;
       Router.refresh();
     });
   });
 
-  document.querySelectorAll('[data-aprovar]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.aprovar;
-      const r  = findRecord(id);
-      if (!r) return;
+  const btnRemessa = document.getElementById('btn-fechar-remessa');
+  if (btnRemessa) {
+    btnRemessa.addEventListener('click', () => {
+      const campRecs = RECORDS.filter(r => r.campanhaId === State.campaign.id);
+      const prontos  = campRecs.filter(r => r.status === 'pronto');
+      if (prontos.length === 0) return;
 
-      openModal(`Lançar contrato · ${r.nomeCliente}`,
-        `<div class="form-grid" style="grid-template-columns:1fr">
-          <div class="form-field">
-            <label>Número do contrato <span class="req">*</span></label>
-            <input type="text" id="apr-numcontrato" value="${r.contrato?.numContrato || ''}" placeholder="Ex: 12345" />
+      const total    = prontos.reduce((s, r) => s + (r.valorComprovante || 0), 0);
+      const numSeq   = String(REMESSAS.length + 1).padStart(3, '0');
+      const remessaId = `REM-${numSeq}`;
+
+      openModal(`Fechar remessa ${remessaId}`,
+        `<div style="display:flex;flex-direction:column;gap:12px">
+          <div class="tag-info">
+            Ao confirmar, <strong>${prontos.length} venda${prontos.length !== 1 ? 's' : ''}</strong> serão marcadas como concluídas e incluídas na remessa <strong>${remessaId}</strong> para Porto Seguro.
           </div>
-          <div class="form-field">
-            <label>Observação</label>
-            <textarea id="apr-obs" placeholder="Confirmar dados na administradora antes de concluir…"></textarea>
-          </div>
-          <dl class="info-dl" style="margin-top:4px">
-            <dt>Cliente</dt>    <dd>${r.nomeCliente}</dd>
-            <dt>Comprovante</dt><dd>${fmtMoney(r.valorComprovante)}</dd>
-            <dt>Extrato</dt>    <dd>${r.extrato ? fmtMoney(r.extrato.valor) : '—'}</dd>
-            <dt>Valor real</dt> <dd>${fmtMoney(r.valorReal)}</dd>
-            <dt>Contrato</dt>       <dd>${r.contrato?.numContrato || '—'}</dd>
+          <dl class="info-dl">
+            <dt>Remessa</dt>    <dd>${remessaId}</dd>
+            <dt>Vendas</dt>     <dd>${prontos.length}</dd>
+            <dt>Total</dt>      <dd><strong>${fmtMoney(total)}</strong></dd>
           </dl>
+          <div style="max-height:160px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px 12px">
+            ${prontos.map(r => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px">
+              <span><strong>${r.id}</strong> · ${r.nomeCliente}</span>
+              <span>${fmtMoney(r.valorComprovante)}</span>
+            </div>`).join('')}
+          </div>
+          <div class="form-field" style="margin:0">
+            <label>Comprovante do pagamento à Porto Seguro <span class="req">*</span></label>
+            <input type="text" id="rem-comprovante" placeholder="Ex: comprovante_rem001.pdf ou nº da transferência" />
+          </div>
         </div>`,
         `<button class="btn btn-secondary" data-modal-close>Cancelar</button>
-         <button class="btn btn-primary" id="confirmar-contrato">Confirmar e concluir venda</button>`
+         <button class="btn btn-primary" id="confirmar-remessa">Confirmar remessa</button>`
       );
 
-      document.getElementById('confirmar-contrato').addEventListener('click', () => {
+      document.getElementById('confirmar-remessa').addEventListener('click', () => {
+        const compRef = document.getElementById('rem-comprovante')?.value?.trim();
+        if (!compRef) {
+          document.getElementById('rem-comprovante').style.borderColor = 'var(--red)';
+          return;
+        }
         const now = new Date();
         const ts  = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
-        const obs = document.getElementById('apr-obs')?.value || '';
 
-        r.status = 'concluida';
-        r.history.push({
-          when: ts,
-          who:  `${State.persona.name} (Aprovação)`,
-          what: `Contrato lançado na administradora · venda concluída${obs ? ' · ' + obs : ''}`,
+        const remessa = {
+          id:          remessaId,
+          data:        ts,
+          campanhaId:  State.campaign.id,
+          total:       total,
+          vendas:      prontos.map(r => r.id),
+          criadoPor:   `${State.persona.name} (Fase 2)`,
+          comprovante: compRef,
+        };
+        REMESSAS.push(remessa);
+
+        prontos.forEach(r => {
+          r.status    = 'concluida';
+          r.remessaId = remessaId;
+          r.history.push({
+            when: ts,
+            who:  `${State.persona.name} (Fase 2)`,
+            what: `Incluída na remessa ${remessaId} · paga à Porto Seguro`,
+          });
         });
 
         closeModal();
-        toast(`Venda concluída · ${r.nomeCliente}`, 'success');
+        toast(`Remessa ${remessaId} fechada · ${prontos.length} venda${prontos.length !== 1 ? 's' : ''} concluída${prontos.length !== 1 ? 's' : ''}`, 'success');
         Router.refresh();
       });
     });
-  });
+  }
 
   document.querySelectorAll('[data-ver-aprov]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1831,7 +1979,7 @@ Screens.campanhasBind = function() {
 function renderVendaListHeader(showGerente) {
   return `
     <div class="venda-row venda-row-header">
-      <div class="vcol-urgente">Urgente</div>
+      ${State.persona.role !== 'Comercial' ? '<div class="vcol-urgente">Urgente</div>' : ''}
       <div class="vcol-main">${showGerente ? 'Comercial · Cliente' : 'Cliente'}</div>
       <div class="vcol-doc">Comprovante</div>
       <div class="vcol-doc">Extrato</div>
@@ -1870,17 +2018,18 @@ function renderVendaCard(r, viewAs) {
   } else if (isMine && r.status === 'diferenca_pendente' && diff < -0.005) {
     action = `<a href="#/ver-venda/${r.id}" class="btn btn-warning btn-sm">Abrir chamado${Icons.chevronR}</a>`;
   } else if (viewAs === 'backoffice' && r.status === 'pronto') {
-    action = `<button class="btn btn-primary btn-sm" data-aprovar="${r.id}">Lançar contrato${Icons.chevronR}</button>`;
+    action = `<a href="#/ver-venda/${r.id}" class="btn btn-ghost btn-sm">Ver${Icons.chevronR}</a>`;
   } else {
     action = `<a href="#/ver-venda/${r.id}" class="btn btn-ghost btn-sm">Ver${Icons.chevronR}</a>`;
   }
 
   return `
-    <div class="venda-row ${r.urgente ? 'urgente-row' : ''}" data-record="${r.id}">
+    <div class="venda-row ${r.urgente && State.persona.role !== 'Comercial' ? 'urgente-row' : ''}" data-record="${r.id}">
 
-      <div class="vcol-urgente">
-        <input type="checkbox" class="check-urgente-row" data-id="${r.id}" ${r.urgente ? 'checked' : ''} title="Marcar como urgente">
-      </div>
+      ${State.persona.role !== 'Comercial' ? `
+        <div class="vcol-urgente">
+          <input type="checkbox" class="check-urgente-row" data-id="${r.id}" ${r.urgente ? 'checked' : ''} title="Marcar como urgente">
+        </div>` : ''}
 
       <div class="vcol-main">
         <div class="venda-id">
@@ -1967,35 +2116,38 @@ function renderVendaDetalhe(r) {
 
         <div class="doc-status-row">
           ${iconState(icons.comp)}
-          <div>
+          <div style="flex:1;min-width:0">
             <div style="font-weight:600">Comprovante</div>
             ${r.comprovante
               ? `<div class="text-sm muted">${r.comprovante.fileName} · ${fmtDateTime(r.comprovante.uploadedAt)}</div>`
               : `<div class="text-sm muted">Não enviado</div>`}
           </div>
           <div class="cell-money">${fmtMoney(r.valorComprovante)}</div>
+          ${r.comprovante ? `<button class="btn btn-ghost btn-sm" data-ver-doc="comp">Ver</button>` : ''}
         </div>
 
         <div class="doc-status-row">
           ${iconState(icons.ext)}
-          <div>
+          <div style="flex:1;min-width:0">
             <div style="font-weight:600">Extrato bancário</div>
             ${r.extrato
               ? `<div class="text-sm muted">${r.extrato.remetente} · ${fmtMoney(r.extrato.valor)} · ${r.extrato.tipo === 'manual' ? 'Manual' : 'Automático'}</div>`
-              : `<div class="text-sm muted">Aguardando vinculação pelo financeiro</div>`}
+              : `<div class="text-sm muted">Aguardando vinculação pela Fase 1</div>`}
           </div>
           <div class="cell-money">${r.extrato ? fmtMoney(r.extrato.valor) : '—'}</div>
+          ${r.extrato ? `<button class="btn btn-ghost btn-sm" data-ver-doc="ext">Ver</button>` : ''}
         </div>
 
         <div class="doc-status-row">
           ${iconState(icons.cont)}
-          <div>
+          <div style="flex:1;min-width:0">
             <div style="font-weight:600">Contrato</div>
             ${r.contrato
               ? `<div class="text-sm muted">${r.contrato.fileName} · Contrato ${r.contrato.numContrato} · ${fmtDateTime(r.contrato.uploadedAt)}</div>`
               : `<div class="text-sm muted">Aguardando envio pelo gerente</div>`}
           </div>
           <div class="cell-money">${r.valorReal !== null ? fmtMoney(r.valorReal) : '—'}</div>
+          ${r.contrato ? `<button class="btn btn-ghost btn-sm" data-ver-doc="cont">Ver</button>` : ''}
         </div>
 
         ${r.valorReal !== null && r.extrato && Math.abs(r.valorReal - r.extrato.valor) > 0.005 ? `
@@ -2003,6 +2155,18 @@ function renderVendaDetalhe(r) {
             Diferença: comprovante ${fmtMoney(r.extrato.valor)} vs. valor real ${fmtMoney(r.valorReal)}
           </div>
         ` : ''}
+
+        ${r.remessaId ? (() => {
+          const rem = REMESSAS.find(x => x.id === r.remessaId);
+          return `<div class="doc-status-row" style="margin-top:12px">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#166534;font-weight:700">✓</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600">Comprovante · Porto Seguro</div>
+              <div class="text-sm muted">${r.remessaId}${rem ? ` · ${fmtDateTime(rem.data)} · ${rem.comprovante}` : ''}</div>
+            </div>
+            ${rem && rem.comprovante ? `<button class="btn btn-ghost btn-sm" data-ver-doc="remessa">Ver</button>` : ''}
+          </div>`;
+        })() : ''}
       </div>
 
       <div class="card card-pad" style="overflow-y:auto;max-height:520px">
@@ -2032,9 +2196,7 @@ function renderSearchBar() {
       <input class="filter-input" placeholder="Buscar nome, valor, ID…"
              value="${State.filter.search || ''}" data-filter-search />
       <div class="flex-grow"></div>
-      <button class="filter-pill ${State.filter.urgente ? 'active urgente-pill' : ''}" data-filter-urgente>
-        🚩 Urgentes
-      </button>
+      ${State.persona.role !== 'Comercial' ? `<button class="filter-pill ${State.filter.urgente ? 'active urgente-pill' : ''}" data-filter-urgente>🚩 Urgentes</button>` : ''}
       <select class="filter-select" data-filter-sort>
         <option value="date_desc"  ${State.filter.sort === 'date_desc'  ? 'selected' : ''}>Mais recente primeiro</option>
         <option value="date_asc"   ${State.filter.sort === 'date_asc'   ? 'selected' : ''}>Mais antigo primeiro</option>
@@ -2042,6 +2204,54 @@ function renderSearchBar() {
       </select>
     </div>
   `;
+}
+
+function renderResultCount(shown, total) {
+  if (shown >= total) return '';
+  const s = shown === 1 ? 'pré-venda' : 'pré-vendas';
+  return `<p class="result-count">Exibindo <strong>${shown}</strong> de ${total} ${s}</p>`;
+}
+
+function renderPagination(total, page, pageSize) {
+  const totalPages = Math.ceil(total / pageSize);
+  if (totalPages <= 1) return '';
+  const start = (page - 1) * pageSize + 1;
+  const end   = Math.min(page * pageSize, total);
+  return `
+    <div class="pagination">
+      <div class="page-size-wrap">
+        <span>Itens por página</span>
+        <select class="filter-select" data-page-size>
+          ${[10, 15, 20, 30, 50, 100].map(n =>
+            `<option value="${n}" ${pageSize === n ? 'selected' : ''}>${n}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div class="page-nav">
+        <button class="page-btn" data-page-prev ${page <= 1 ? 'disabled' : ''}>${Icons.chevronL} Anterior</button>
+        <span class="page-info">${start}–${end} de ${total}</span>
+        <button class="page-btn" data-page-next ${page >= totalPages ? 'disabled' : ''}>Próxima ${Icons.chevronR}</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindPagination() {
+  const prev   = document.querySelector('[data-page-prev]');
+  const next   = document.querySelector('[data-page-next]');
+  const sizeEl = document.querySelector('[data-page-size]');
+  if (prev) prev.addEventListener('click', () => {
+    if (State.filter.page > 1) { State.filter.page--; Router.refresh(); }
+  });
+  if (next) next.addEventListener('click', () => {
+    State.filter.page++;
+    Router.refresh();
+  });
+  if (sizeEl) sizeEl.addEventListener('change', () => {
+    State.filter.pageSize = parseInt(sizeEl.value);
+    State.filter.page = 1;
+    Router.refresh();
+  });
 }
 
 function applySearchSort(records) {
@@ -2061,14 +2271,21 @@ function applySearchSort(records) {
   }
   const sort = State.filter.sort || 'date_desc';
   out = [...out].sort((a, b) => {
-    if (a.urgente && !b.urgente) return -1;
-    if (!a.urgente && b.urgente) return 1;
     if (sort === 'date_asc')   return a.dataHora < b.dataHora ? -1 : 1;
     if (sort === 'date_desc')  return a.dataHora > b.dataHora ? -1 : 1;
     if (sort === 'value_desc') return b.valorComprovante - a.valorComprovante;
     return 0;
   });
   return out;
+}
+
+function hasActiveFilters() {
+  const f = State.filter;
+  return !!(f.search || f.urgente ||
+    (f.status && f.status !== 'all') ||
+    (f.superintendencia && f.superintendencia !== 'all') ||
+    (f.diretoria && f.diretoria !== 'all') ||
+    (f.gerente && f.gerente !== 'all'));
 }
 
 function renderPrevVendasFilters(showGerente = false) {
@@ -2103,9 +2320,7 @@ function renderPrevVendasFilters(showGerente = false) {
         </button>
       ` : ''}
       <div class="flex-grow"></div>
-      <button class="filter-pill ${State.filter.urgente ? 'active urgente-pill' : ''}" data-filter-urgente>
-        🚩 Urgentes
-      </button>
+      ${State.persona.role !== 'Comercial' ? `<button class="filter-pill ${State.filter.urgente ? 'active urgente-pill' : ''}" data-filter-urgente>🚩 Urgentes</button>` : ''}
       ${showGerente ? `
         <select class="filter-select" data-filter-super>
           <option value="all">Todas as supts.</option>
@@ -2125,6 +2340,7 @@ function renderPrevVendasFilters(showGerente = false) {
         <option value="date_asc"  ${State.filter.sort === 'date_asc'  ? 'selected' : ''}>Mais antigo primeiro</option>
         <option value="value_desc" ${State.filter.sort === 'value_desc' ? 'selected' : ''}>Maior valor primeiro</option>
       </select>
+      ${hasActiveFilters() ? `<button class="btn-clear-filters" data-clear-filters>Limpar filtros</button>` : ''}
     </div>
   `;
 }
@@ -2134,6 +2350,7 @@ function bindStatusFilters() {
     el.addEventListener('click', () => {
       const key = el.dataset.filterStatus;
       State.filter.status = (State.filter.status === key) ? 'all' : key;
+      State.filter.page = 1;
       Router.refresh();
     });
   });
@@ -2141,7 +2358,7 @@ function bindStatusFilters() {
 
 function bindSortFilter() {
   const s = document.querySelector('[data-filter-sort]');
-  if (s) s.addEventListener('change', () => { State.filter.sort = s.value; Router.refresh(); });
+  if (s) s.addEventListener('change', () => { State.filter.sort = s.value; State.filter.page = 1; Router.refresh(); });
 }
 
 function bindSearchFilter() {
@@ -2152,6 +2369,7 @@ function bindSearchFilter() {
     clearTimeout(t);
     t = setTimeout(() => {
       State.filter.search = inp.value;
+      State.filter.page = 1;
       Router.refresh();
       const newInp = document.querySelector('[data-filter-search]');
       if (newInp) { newInp.focus(); newInp.setSelectionRange(inp.value.length, inp.value.length); }
@@ -2162,6 +2380,21 @@ function bindSearchFilter() {
   if (btnUrgente) {
     btnUrgente.addEventListener('click', () => {
       State.filter.urgente = !State.filter.urgente;
+      State.filter.page = 1;
+      Router.refresh();
+    });
+  }
+
+  const btnClear = document.querySelector('[data-clear-filters]');
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      State.filter.status = 'all';
+      State.filter.search = '';
+      State.filter.urgente = false;
+      State.filter.superintendencia = 'all';
+      State.filter.diretoria = 'all';
+      State.filter.gerente = 'all';
+      State.filter.page = 1;
       Router.refresh();
     });
   }
@@ -2173,17 +2406,20 @@ function bindHierarchyFilters() {
     State.filter.superintendencia = superSel.value;
     State.filter.diretoria = 'all';
     State.filter.gerente = 'all';
+    State.filter.page = 1;
     Router.refresh();
   });
   const dirSel = document.querySelector('[data-filter-dir]');
   if (dirSel) dirSel.addEventListener('change', () => {
     State.filter.diretoria = dirSel.value;
     State.filter.gerente = 'all';
+    State.filter.page = 1;
     Router.refresh();
   });
   const gerSel = document.querySelector('[data-filter-gerente]');
   if (gerSel) gerSel.addEventListener('change', () => {
     State.filter.gerente = gerSel.value;
+    State.filter.page = 1;
     Router.refresh();
   });
 }

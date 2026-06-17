@@ -4,6 +4,7 @@
 
 const Router = {
   routes: {
+    'home':              { render: () => Screens.home(),             bind: () => Screens.homeBind(),            public: true },
     'login':             { render: () => Screens.login(),            bind: () => Screens.loginBind(),           public: true },
     'campanha':          { render: () => Screens.campaign(),         bind: () => Screens.campaignBind() },
     // Gerente

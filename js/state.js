@@ -5,14 +5,14 @@
 const State = {
   persona: null,
   campaign: null,
-  filter: { status: 'all', superintendencia: 'all', diretoria: 'all', gerente: 'all', search: '', sort: 'date_desc' },
+  filter: { status: 'all', superintendencia: 'all', diretoria: 'all', gerente: 'all', search: '', sort: 'date_asc', page: 1, pageSize: 15 },
   selectedLeft:  null,
   selectedRight: null,
 
   setPersona(p) {
     this.persona = p;
     this.campaign = CAMPAIGNS[0];
-    this.filter = { status: 'all', superintendencia: 'all', diretoria: 'all', gerente: 'all', search: '', sort: 'date_desc', aprovTab: 'pronto' };
+    this.filter = { status: 'all', superintendencia: 'all', diretoria: 'all', gerente: 'all', search: '', sort: 'date_asc', aprovTab: 'pronto', page: 1, pageSize: 15 };
     this.selectedLeft  = null;
     this.selectedRight = null;
     sessionStorage.setItem('pv_persona', p.id);
@@ -54,7 +54,22 @@ function fmtDateTime(s) {
 
 /* ---------- Helpers de dados ---------- */
 
+function applyAutoUrgente(records) {
+  const now = new Date();
+  records.forEach(r => {
+    if (r.status === 'aguardando_financeiro' && !r.urgente) {
+      const [datePart, timePart] = r.dataHora.split(' ');
+      const [y, m, d] = datePart.split('-').map(Number);
+      const [hh, mm] = (timePart || '00:00').split(':').map(Number);
+      const criada = new Date(y, m - 1, d, hh, mm);
+      const diffDays = (now - criada) / (1000 * 60 * 60 * 24);
+      if (diffDays >= 2) r.urgente = true;
+    }
+  });
+}
+
 function getRecordsForView() {
+  applyAutoUrgente(RECORDS);
   if (State.persona && State.persona.role === 'Comercial') {
     return RECORDS.filter(r => r.gerenteId === State.persona.id);
   }
@@ -91,8 +106,6 @@ function applyFilters(records) {
 
   const sort = State.filter.sort || 'date_desc';
   filtered.sort((a, b) => {
-    if (a.urgente && !b.urgente) return -1;
-    if (!a.urgente && b.urgente) return 1;
     if (sort === 'date_asc')   return a.dataHora < b.dataHora ? -1 : 1;
     if (sort === 'date_desc')  return a.dataHora > b.dataHora ? -1 : 1;
     if (sort === 'value_desc') return b.valorComprovante - a.valorComprovante;
