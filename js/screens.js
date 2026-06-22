@@ -1843,6 +1843,12 @@ Screens.cobrancas = function() {
         <h1 class="page-title">Fase 3 · Cobranças e Devoluções</h1>
         <p class="page-subtitle">Gestão de diferenças entre o que o cliente pagou e o valor do contrato</p>
       </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary" id="btn-exportar-fase3">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar relatório
+        </button>
+      </div>
     </div>
 
     <div class="cob-metrics">
@@ -1920,6 +1926,7 @@ Screens.cobrancasBind = function() {
       Router.refresh();
     });
   });
+  bindExportBtn('btn-exportar-fase3', 'fase3');
 };
 
 /* --- Campanhas --- */
@@ -2657,7 +2664,31 @@ function openExportModal(tipo) {
 
   const colunasFin   = ['ID', 'Campanha', 'Comercial', 'Vendedor', 'Pagador', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Status', 'Data/Hora', 'Extrato', 'Nº Contrato'];
   const colunasAprov = ['ID', 'Campanha', 'Comercial', 'Cliente', 'Valor Comprovante', 'Valor Real', 'Nº Contrato', 'Status', 'Data/Hora'];
-  const colunas = tipo === 'financeiro' ? colunasFin : colunasAprov;
+  const colunasFase3 = ['ID', 'Campanha', 'Comercial', 'Pagador', 'Valor Pago', 'Valor Contrato', 'Diferença', 'Categoria', 'Motivo Cancelamento', 'Status', 'Data/Hora'];
+  const colunas = tipo === 'financeiro' ? colunasFin : tipo === 'fase3' ? colunasFase3 : colunasAprov;
+
+  const filterSection = tipo === 'fase3' ? `
+    <div class="export-section">
+      <div class="export-section-title">Categorias</div>
+      <div class="export-status-grid" id="exp-status-grid">
+        <label class="export-check"><input type="checkbox" value="absorvidas" checked /> Porto Vale cobriu</label>
+        <label class="export-check"><input type="checkbox" value="pendentes" checked /> Diferença pendente</label>
+        <label class="export-check"><input type="checkbox" value="devolucoes" checked /> A devolver ao cliente</label>
+        <label class="export-check"><input type="checkbox" value="cancelamentos" checked /> Cancelamentos c/ extorno</label>
+      </div>
+    </div>
+  ` : `
+    <div class="export-section">
+      <div class="export-section-title">Status</div>
+      <div class="export-status-grid" id="exp-status-grid">
+        ${Object.entries(STATUS_LABEL).map(([k, v]) => `
+          <label class="export-check">
+            <input type="checkbox" value="${k}" checked /> ${v}
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `;
 
   openModal('Exportar relatório', `
     <div class="export-modal">
@@ -2675,16 +2706,7 @@ function openExportModal(tipo) {
         </div>
       </div>
 
-      <div class="export-section">
-        <div class="export-section-title">Status</div>
-        <div class="export-status-grid" id="exp-status-grid">
-          ${Object.entries(STATUS_LABEL).map(([k, v]) => `
-            <label class="export-check">
-              <input type="checkbox" value="${k}" checked /> ${v}
-            </label>
-          `).join('')}
-        </div>
-      </div>
+      ${filterSection}
 
       <div class="export-section">
         <div class="export-section-title">Colunas incluídas</div>
@@ -2703,9 +2725,36 @@ function openExportModal(tipo) {
     </button>
   `);
 
+  function categoriaFase3(r) {
+    if (r.status === 'cancelada' && r.cancelamento?.extornoNecessario) return 'Cancelamento c/ Extorno';
+    if (r.diferencaAbsorvida) return 'Porto Vale cobriu';
+    if (r.valorReal !== null && (r.valorReal - r.valorComprovante) < -0.005) return 'Devolução ao Cliente';
+    return 'Diferença Pendente';
+  }
+
   function getRegistros() {
     const de  = document.getElementById('exp-de').value;
     const ate = document.getElementById('exp-ate').value;
+
+    if (tipo === 'fase3') {
+      const catsSel = [...document.querySelectorAll('#exp-status-grid input:checked')].map(i => i.value);
+      const catMap = {
+        absorvidas:    r => !!r.diferencaAbsorvida,
+        pendentes:     r => r.status === 'diferenca_pendente',
+        devolucoes:    r => r.valorReal !== null && (r.valorReal - r.valorComprovante) < -0.005,
+        cancelamentos: r => r.status === 'cancelada' && r.cancelamento?.extornoNecessario,
+      };
+      const seen = new Set();
+      const rows = [];
+      catsSel.forEach(cat => {
+        RECORDS.filter(r => {
+          const data = r.dataHora.slice(0, 10);
+          return data >= de && data <= ate && catMap[cat]?.(r);
+        }).forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); rows.push(r); } });
+      });
+      return rows;
+    }
+
     const statusSel = [...document.querySelectorAll('#exp-status-grid input:checked')].map(i => i.value);
     return RECORDS.filter(r => {
       const data = r.dataHora.slice(0, 10);
@@ -2728,16 +2777,25 @@ function openExportModal(tipo) {
     const de  = document.getElementById('exp-de').value;
     const ate = document.getElementById('exp-ate').value;
 
-    const linhas = tipo === 'financeiro'
-      ? registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeVendedor, r.nomePagador, r.nomeCliente,
-          r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
-          STATUS_LABEL[r.status] ?? r.status, r.dataHora,
-          r.extrato ? 'Sim' : 'Não', r.contrato?.numContrato ?? ''].join(';'))
-      : registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeCliente,
-          r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
-          r.contrato?.numContrato ?? '', STATUS_LABEL[r.status] ?? r.status, r.dataHora].join(';'));
+    let linhas;
+    if (tipo === 'financeiro') {
+      linhas = registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeVendedor, r.nomePagador, r.nomeCliente,
+        r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
+        STATUS_LABEL[r.status] ?? r.status, r.dataHora,
+        r.extrato ? 'Sim' : 'Não', r.contrato?.numContrato ?? ''].join(';'));
+    } else if (tipo === 'fase3') {
+      linhas = registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomePagador,
+        r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
+        r.valorReal !== null ? Math.abs(r.valorReal - r.valorComprovante).toFixed(2) : '',
+        categoriaFase3(r), r.cancelamento?.motivo ?? '',
+        STATUS_LABEL[r.status] ?? r.status, r.dataHora].join(';'));
+    } else {
+      linhas = registros.map(r => [r.id, r.campanhaId, r.gerenteNome, r.nomeCliente,
+        r.valorComprovante?.toFixed(2), r.valorReal?.toFixed(2) ?? '',
+        r.contrato?.numContrato ?? '', STATUS_LABEL[r.status] ?? r.status, r.dataHora].join(';'));
+    }
 
-    const cabecalho = (tipo === 'financeiro' ? colunasFin : colunasAprov).join(';');
+    const cabecalho = colunas.join(';');
     const csv = '﻿' + cabecalho + '\n' + linhas.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
