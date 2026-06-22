@@ -49,7 +49,7 @@ function renderPersonaSwitch() {
         <button class="${curr && curr.id === p.id ? 'active' : ''}"
                 data-action="switch-persona" data-persona="${p.id}"
                 title="${p.name} · ${p.role}">
-          ${p.role === 'Fase 1' ? 'Fase 1' : 'Fase 2'}
+          ${p.role}
         </button>
       `).join('')}
     </div>
@@ -74,10 +74,15 @@ function renderSubnav(active, counts) {
       { href: '#/importar-extrato', icon: Icons.import,    label: 'Importar extrato', key: 'importar-extrato' },
       { href: '#/conciliacao',      icon: Icons.recon,     label: 'Vincular PIX',     key: 'conciliacao', badge: semExtrato + counts.orfaos },
     ];
-  } else {
+  } else if (role === 'backoffice_adm') {
     links = [
-      { href: '#/aprovacoes', icon: Icons.complete, label: 'Fase 2', key: 'aprovacoes', badge: counts.pronto },
-      { href: '#/campanhas',  icon: Icons.list,     label: 'Campanhas',  key: 'campanhas' },
+      { href: '#/aprovacoes', icon: Icons.complete, label: 'Fase 2',    key: 'aprovacoes', badge: counts.pronto },
+      { href: '#/campanhas',  icon: Icons.list,     label: 'Campanhas', key: 'campanhas' },
+    ];
+  } else {
+    const pendCobranca = RECORDS.filter(r => r.diferencaAbsorvida || r.status === 'diferenca_pendente' || (r.valorReal !== null && (r.valorReal - r.valorComprovante) < -0.005)).length;
+    links = [
+      { href: '#/cobrancas', icon: Icons.recon, label: 'Cobranças', key: 'cobrancas', badge: pendCobranca || null },
     ];
   }
 

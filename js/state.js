@@ -122,6 +122,7 @@ function getCounts(records) {
     diferenca_pendente:     records.filter(r => r.status === 'diferenca_pendente').length,
     pronto:                 records.filter(r => r.status === 'pronto').length,
     concluida:              records.filter(r => r.status === 'concluida').length,
+    cancelada:              records.filter(r => r.status === 'cancelada').length,
     sem_extrato:            records.filter(r => !r.extrato).length,
     orfaos:                 EXTRATO_ORPHANS.length,
   };

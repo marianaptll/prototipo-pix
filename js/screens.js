@@ -187,7 +187,7 @@ Screens.novaPrevenda = function() {
             <div class="help">Pré-selecionada</div>
           </div>
 
-          <div class="form-field">
+          <div class="form-field" style="grid-column:span 2">
             <label>Vendedor responsável <span class="req">*</span></label>
             <input type="text" id="f-vendedor" required value="${State.persona.name}" />
           </div>
@@ -198,12 +198,17 @@ Screens.novaPrevenda = function() {
           </div>
 
           <div class="form-field">
+            <label>CPF / CNPJ do pagador <span class="req">*</span></label>
+            <input type="text" id="f-cpf" required placeholder="000.000.000-00 ou 00.000.000/0001-00" maxlength="18" />
+          </div>
+
+          <div class="form-field">
             <label>Nome do cliente (titular do futuro contrato) <span class="req">*</span></label>
             <input type="text" id="f-cliente" required placeholder="Nome que constará no contrato" />
           </div>
 
-          <div class="form-field full">
-            <div class="toggle">
+          <div style="grid-column:span 3;display:flex;gap:16px;align-items:flex-end">
+            <div class="toggle" style="flex:1;margin:0">
               <div>
                 <div style="font-weight:600;font-size:13px;color:var(--navy)">O nome do pagador será o mesmo do contrato?</div>
               </div>
@@ -212,21 +217,14 @@ Screens.novaPrevenda = function() {
                 <button type="button" class="toggle-btn" data-toggle="nao">Não</button>
               </div>
             </div>
-          </div>
-
-          <div class="form-field">
-            <label>Valor do comprovante (R$) <span class="req">*</span></label>
-            <input type="number" id="f-valor" step="0.01" required placeholder="0,00" />
-          </div>
-
-          <div class="form-field">
-            <label>Data do pagamento <span class="req">*</span></label>
-            <input type="date" id="f-data" required value="${hoje}" />
-          </div>
-
-          <div class="form-field">
-            <label>Horário <span class="req">*</span></label>
-            <input type="time" id="f-hora" required value="${hora}" />
+            <div class="form-field" style="margin:0;width:150px;flex-shrink:0">
+              <label>Valor (R$) <span class="req">*</span></label>
+              <input type="number" id="f-valor" step="0.01" required placeholder="0,00" />
+            </div>
+            <div class="form-field" style="margin:0;flex:1">
+              <label>Data e horário <span class="req">*</span></label>
+              <input type="datetime-local" id="f-datahora" required value="${hoje}T${hora}" />
+            </div>
           </div>
 
           <div class="form-field full">
@@ -241,7 +239,7 @@ Screens.novaPrevenda = function() {
 
           <div class="form-field full">
             <label>Observações</label>
-            <textarea id="f-obs" placeholder="Informações adicionais para o financeiro ou aprovação de cota"></textarea>
+            <textarea id="f-obs" placeholder="Informações adicionais"></textarea>
           </div>
 
 
@@ -294,11 +292,9 @@ Screens.novaPrevendaBind = function() {
   document.getElementById('form-prevenda').addEventListener('submit', (e) => {
     e.preventDefault();
     const mesmoNome = document.querySelector('[data-toggle].active').dataset.toggle === 'sim';
-    const data  = document.getElementById('f-data').value;
-    const hora  = document.getElementById('f-hora').value;
+    const dataHoraRaw = document.getElementById('f-datahora').value;
     const newId = 'PV-' + String(Date.now()).slice(-4);
-    const now   = new Date();
-    const ts    = `${data} ${hora}`;
+    const ts    = dataHoraRaw.replace('T', ' ').slice(0, 16);
 
     const record = {
       id: newId,
@@ -311,6 +307,7 @@ Screens.novaPrevendaBind = function() {
       mesmoNomeContrato: mesmoNome,
       motivoDiferenca: mesmoNome ? '' : (document.getElementById('f-motivo')?.value || ''),
       valorComprovante: parseFloat(document.getElementById('f-valor').value) || 0,
+      cpfPagador: document.getElementById('f-cpf').value.trim(),
       dataHora: ts,
       comprovante: { fileName: fi.files[0]?.name || 'comprovante.pdf', uploadedAt: ts },
       observacao: document.getElementById('f-obs').value,
@@ -340,11 +337,12 @@ Screens.minhasVendas = function() {
 
   const summary = [
     { label: 'Total',                value: counts.total,                 status: 'all',                   accent: '' },
-    { label: 'Análise financeira',   value: counts.aguardando_financeiro, status: 'aguardando_financeiro', accent: 'amber' },
+    { label: 'Aguardando extrato',   value: counts.aguardando_financeiro, status: 'aguardando_financeiro', accent: 'amber' },
     { label: 'Aguardando contrato',  value: counts.aguardando_contrato,   status: 'aguardando_contrato',   accent: 'blue' },
     { label: 'Diferença pendente',   value: counts.diferenca_pendente,    status: 'diferenca_pendente',    accent: 'orange' },
     { label: 'Pronto para aprovação',value: counts.pronto,                status: 'pronto',                accent: 'green' },
     { label: 'Concluídas',           value: counts.concluida,             status: 'concluida',             accent: 'skyblue' },
+    { label: 'Canceladas',           value: counts.cancelada,             status: 'cancelada',             accent: 'red' },
   ];
 
   return renderShell(`
@@ -449,6 +447,7 @@ Screens.verVenda = function(id) {
   const diff = r.valorReal !== null ? r.valorReal - r.valorComprovante : 0;
   const needsComplemento = isGerente && r.status === 'diferenca_pendente' && diff > 0.005;
   const needsChamado     = isGerente && r.status === 'diferenca_pendente' && diff < -0.005 && !r.chamadoReembolso;
+  const canCancel        = isGerente && State.persona.id === r.gerenteId && r.status !== 'concluida' && r.status !== 'cancelada';
 
   return renderShell(`
     <div class="page-header">
@@ -465,6 +464,13 @@ Screens.verVenda = function(id) {
         <div class="page-actions">
           <button class="btn ${r.urgente ? 'btn-danger' : 'btn-secondary'}" id="btn-urgente">
             🚩 ${r.urgente ? 'Remover urgência' : 'Marcar como urgente'}
+          </button>
+        </div>
+      ` : ''}
+      ${canCancel ? `
+        <div class="page-actions">
+          <button class="btn btn-danger" id="btn-cancelar-venda">
+            Solicitar cancelamento
           </button>
         </div>
       ` : ''}
@@ -503,6 +509,18 @@ Screens.verVenda = function(id) {
             </div>
           </div>
         </form>
+      </div>
+    ` : ''}
+
+    ${isGerente && r.diferencaAbsorvida ? `
+      <div class="action-panel action-panel-amber">
+        <div class="action-panel-label">
+          <div class="action-panel-icon">!</div>
+          <div>
+            <div class="action-panel-title">Porto Vale cobriu a diferença de ${fmtMoney(r.diferencaAbsorvida.valor)}</div>
+            <div class="action-panel-desc">O cliente pagou menos que o valor do contrato, mas a diferença está dentro do limite aceito. A Porto Vale irá cobrar esse valor de você posteriormente.</div>
+          </div>
+        </div>
       </div>
     ` : ''}
 
@@ -582,6 +600,26 @@ Screens.verVenda = function(id) {
       </div>
     ` : ''}
 
+    ${r.status === 'cancelada' && r.cancelamento ? `
+      <div class="action-panel action-panel-red">
+        <div class="action-panel-label">
+          <div class="action-panel-icon" style="background:var(--red)">✕</div>
+          <div>
+            <div class="action-panel-title">Venda cancelada internamente</div>
+            <div class="action-panel-desc">
+              Cancelada em <strong>${fmtDateTime(r.cancelamento.em)}</strong> por <strong>${r.cancelamento.por}</strong>.<br>
+              Motivo: ${r.cancelamento.motivo}
+            </div>
+          </div>
+        </div>
+        ${r.cancelamento.extornoNecessario && State.persona.role === 'Fase 1' ? `
+        <div style="margin-top:12px;background:rgba(0,0,0,.06);border-radius:6px;padding:10px 14px;font-size:13px">
+          <strong>Extorno pendente</strong> — o cliente realizou o PIX e precisa ser reembolsado.
+          Processe a devolução e registre no histórico.
+        </div>` : ''}
+      </div>
+    ` : ''}
+
     ${renderVendaDetalhe(r)}
   `, '');
 };
@@ -599,6 +637,14 @@ Screens.verVendaBind = function(id) {
       r.urgente = !r.urgente;
       toast(r.urgente ? `🚩 ${r.nomeCliente} marcada como urgente` : `Urgência removida · ${r.nomeCliente}`, r.urgente ? 'error' : 'success');
       Router.refresh();
+    });
+  }
+
+  // Cancelamento com 2FA
+  const btnCancelar = document.getElementById('btn-cancelar-venda');
+  if (btnCancelar) {
+    btnCancelar.addEventListener('click', () => {
+      openCancelModal(r);
     });
   }
 
@@ -620,71 +666,7 @@ Screens.verVendaBind = function(id) {
   // Visualizar documentos
   document.querySelectorAll('[data-ver-doc]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const tipo = btn.dataset.verDoc;
-      let titulo, conteudo;
-
-      if (tipo === 'comp' && r.comprovante) {
-        titulo = `Comprovante · ${r.comprovante.fileName}`;
-        conteudo = `
-          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
-            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">COMPROVANTE DE TRANSFERÊNCIA PIX</div>
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
-              <span style="color:#888">Tipo</span><span>PIX</span>
-              <span style="color:#888">Valor</span><span style="font-weight:700">${fmtMoney(r.valorComprovante)}</span>
-              <span style="color:#888">Pagador</span><span>${r.nomePagador}</span>
-              <span style="color:#888">Favorecido</span><span>Porto Vale Consórcios</span>
-              <span style="color:#888">Data/Hora</span><span>${fmtDateTime(r.dataHora)}</span>
-              <span style="color:#888">Enviado em</span><span>${fmtDateTime(r.comprovante.uploadedAt)}</span>
-            </div>
-          </div>`;
-      } else if (tipo === 'ext' && r.extrato) {
-        titulo = `Extrato bancário · ${r.extrato.remetente}`;
-        conteudo = `
-          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
-            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">LANÇAMENTO — EXTRATO BANCÁRIO</div>
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
-              <span style="color:#888">Remetente</span><span>${r.extrato.remetente}</span>
-              <span style="color:#888">Valor</span><span style="font-weight:700">${fmtMoney(r.extrato.valor)}</span>
-              <span style="color:#888">Tipo</span><span>${r.extrato.tipo === 'manual' ? 'Vinculado manualmente' : 'Vinculado automaticamente'}</span>
-              <span style="color:#888">Conta</span><span>Porto Vale — C/C 12345-6</span>
-            </div>
-          </div>`;
-      } else if (tipo === 'cont' && r.contrato) {
-        titulo = `Contrato · ${r.contrato.fileName}`;
-        conteudo = `
-          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
-            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">CONTRATO DE CONSÓRCIO</div>
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
-              <span style="color:#888">Nº Contrato</span><span style="font-weight:700">${r.contrato.numContrato}</span>
-              <span style="color:#888">Cliente</span><span>${r.nomeCliente}</span>
-              <span style="color:#888">Valor</span><span>${fmtMoney(r.valorReal)}</span>
-              <span style="color:#888">Arquivo</span><span>${r.contrato.fileName}</span>
-              <span style="color:#888">Enviado em</span><span>${fmtDateTime(r.contrato.uploadedAt)}</span>
-            </div>
-          </div>`;
-      } else if (tipo === 'remessa' && r.remessaId) {
-        const rem = REMESSAS.find(x => x.id === r.remessaId);
-        titulo = `Comprovante · ${rem?.id}`;
-        conteudo = `
-          <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;margin-bottom:12px">
-            <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">COMPROVANTE DE PAGAMENTO — PORTO SEGURO</div>
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
-              <span style="color:#888">Remessa</span><span style="font-weight:700">${rem?.id}</span>
-              <span style="color:#888">Data</span><span>${rem ? fmtDateTime(rem.data) : '—'}</span>
-              <span style="color:#888">Pagador</span><span>Porto Vale Consórcios</span>
-              <span style="color:#888">Favorecido</span><span>Porto Seguro S/A</span>
-              <span style="color:#888">Valor total</span><span style="font-weight:700">${rem ? fmtMoney(rem.total) : '—'}</span>
-              <span style="color:#888">Vendas</span><span>${rem ? rem.vendas.join(', ') : '—'}</span>
-              <span style="color:#888">Arquivo</span><span>${rem?.comprovante || '—'}</span>
-              <span style="color:#888">Fechado por</span><span>${rem?.criadoPor || '—'}</span>
-            </div>
-          </div>`;
-      }
-
-      openModal(titulo, conteudo,
-        `<button class="btn btn-secondary" data-modal-close>Fechar</button>
-         <button class="btn btn-primary" onclick="toast('Download iniciado','success');closeModal()">⬇ Baixar</button>`
-      );
+      openDocModal(r, btn.dataset.verDoc);
     });
   });
 
@@ -830,15 +812,21 @@ Screens.verVendaBind = function(id) {
       r.contrato  = { fileName, uploadedAt: ts, numContrato };
 
       const diff = valor - r.valorComprovante;
-      if (diff > 0.005) {
+      if (diff > 5) {
         r.status = 'diferenca_pendente';
         r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Contrato ${numContrato}` });
         r.history.push({ when: ts, who: 'Sistema', what: `Diferença detectada · cliente pagou ${fmtMoney(r.valorComprovante)} mas contrato exige ${fmtMoney(valor)} · aguardando comprovante complementar de ${fmtMoney(diff)}` });
         toast(`Contrato salvo · cobrança de ${fmtMoney(diff)} pendente`, 'error');
+      } else if (diff > 0.005) {
+        r.status = 'pronto';
+        r.diferencaAbsorvida = { valor: diff, absorvidaEm: ts };
+        r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Contrato ${numContrato}` });
+        r.history.push({ when: ts, who: 'Sistema', what: `Diferença de ${fmtMoney(diff)} absorvida pela Porto Vale · será cobrado do gerente posteriormente` });
+        toast(`Contrato enviado · diferença de ${fmtMoney(diff)} será cobrada de você posteriormente`, 'warn');
       } else {
         r.status = 'pronto';
         r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Contrato enviado · valor real ${fmtMoney(valor)} · Contrato ${numContrato}` });
-        if (diff < -0.005) r.history.push({ when: ts, who: 'Sistema', what: `Pagamento excede o contrato · ${fmtMoney(Math.abs(diff))} a devolver` });
+        if (diff < -0.005) r.history.push({ when: ts, who: 'Sistema', what: `Pagamento excede o contrato · ${fmtMoney(Math.abs(diff))} a devolver ao cliente` });
         toast(`Contrato enviado · ${r.nomeCliente} pronto para aprovação`, 'success');
       }
 
@@ -1127,6 +1115,7 @@ Screens.dashboard = function() {
     { label: 'Diferença pendente',    value: counts.diferenca_pendente,     status: 'diferenca_pendente',    accent: 'orange' },
     { label: 'Pronto para aprovação', value: counts.pronto,                 status: 'pronto',                accent: 'green' },
     { label: 'Concluídas',            value: counts.concluida,              status: 'concluida',             accent: 'skyblue' },
+    { label: 'Canceladas',            value: counts.cancelada,              status: 'cancelada',             accent: 'red' },
   ];
 
   return renderShell(`
@@ -1297,7 +1286,7 @@ Screens.importarExtrato = function() {
                 <div class="extrato-history-summary">
                   <span class="chip chip-green text-sm">${ext.autoLinked} vinculados auto.</span>
                   ${ext.entries.filter(e => e.status === 'manual').length ? `<span class="chip chip-blue text-sm">${ext.entries.filter(e => e.status === 'manual').length} manual</span>` : ''}
-                  ${ext.pending ? `<span class="chip chip-amber text-sm">${ext.pending} pendente${ext.pending > 1 ? 's' : ''}</span>` : ''}
+                  ${(() => { const p = ext.entries.filter(e => e.status === 'pending').length; return p ? `<span class="chip chip-amber text-sm">${p} pendente${p > 1 ? 's' : ''}</span>` : ''; })()}
                 </div>
               </div>
               <button class="btn btn-ghost btn-xs" data-open-extrato="${ext.id}">Ver detalhes</button>
@@ -1366,13 +1355,17 @@ Screens.importarExtratoBind = function() {
       importedAt: ts,
       importedBy: State.persona ? State.persona.name : 'Financeiro',
       autoLinked: autoMatch.length,
-      pending: 3,
-      entries: [
-        ...autoMatch.map(m => ({ remetente: m.remetente, valor: m.valor, dataHora: m.dataHora, vinculadoId: m.id, vinculadoNome: findRecord(m.id) ? findRecord(m.id).nomeCliente : m.remetente, status: 'auto' })),
-        { remetente: 'JOÃO DA SILVA',    valor: 1240.00, dataHora: '2026-06-08 14:32', vinculadoId: null, vinculadoNome: null, status: 'pending' },
-        { remetente: 'FERNANDA COUTO',   valor: 1200.00, dataHora: '2026-06-06 15:44', vinculadoId: null, vinculadoNome: null, status: 'pending' },
-        { remetente: 'SERGIO PINTO',     valor: 1750.00, dataHora: '2026-06-01 08:55', vinculadoId: null, vinculadoNome: null, status: 'pending' },
-      ],
+      entries: (() => {
+        const pendingEntries = [
+          { remetente: 'JOÃO DA SILVA',    valor: 1240.00, dataHora: '2026-06-08 14:32', vinculadoId: null, vinculadoNome: null, status: 'pending' },
+          { remetente: 'FERNANDA COUTO',   valor: 1200.00, dataHora: '2026-06-06 15:44', vinculadoId: null, vinculadoNome: null, status: 'pending' },
+          { remetente: 'SERGIO PINTO',     valor: 1750.00, dataHora: '2026-06-01 08:55', vinculadoId: null, vinculadoNome: null, status: 'pending' },
+        ];
+        return [
+          ...autoMatch.map(m => ({ remetente: m.remetente, valor: m.valor, dataHora: m.dataHora, vinculadoId: m.id, vinculadoNome: findRecord(m.id) ? findRecord(m.id).nomeCliente : m.remetente, status: 'auto' })),
+          ...pendingEntries,
+        ];
+      })(),
     });
 
     toast('Importação concluída · 2 pré-vendas vinculadas, restantes aguardam vinculação manual', 'success');
@@ -1606,6 +1599,11 @@ Screens.conciliacaoBind = function() {
               <span class="detail-modal-label">Pagador</span>
               <span>${r.nomePagador}</span>
             </div>
+            ${r.cpfPagador ? `
+            <div class="detail-modal-row">
+              <span class="detail-modal-label">CPF/CNPJ</span>
+              <span style="font-family:monospace;font-weight:600">${r.cpfPagador}</span>
+            </div>` : ''}
             ${r.nomePagador !== r.nomeCliente ? `
             <div class="detail-modal-row">
               <span class="detail-modal-label">Titular</span>
@@ -1715,7 +1713,7 @@ Screens.aprovacoes = function() {
   const campRecs   = RECORDS.filter(r => r.campanhaId === State.campaign.id);
   const prontos    = campRecs.filter(r => r.status === 'pronto');
   const concluidas = campRecs.filter(r => r.status === 'concluida');
-  const pendentes  = campRecs.filter(r => !['pronto','concluida'].includes(r.status));
+  const pendentes  = campRecs.filter(r => !['pronto','concluida','cancelada'].includes(r.status));
 
   const activeTab = State.filter.aprovTab || 'pronto';
   const page      = State.filter.page     || 1;
@@ -1730,19 +1728,6 @@ Screens.aprovacoes = function() {
             ${renderPagination(allVis.length, page, pageSize)}`;
   }
 
-  const totalRemessa = prontos.reduce((s, r) => s + (r.valorComprovante || 0), 0);
-  const remessaPanel = activeTab === 'pronto' && prontos.length > 0 ? `
-    <div class="action-panel action-panel-blue" style="margin-bottom:20px">
-      <div class="action-panel-label">
-        <div class="action-panel-icon">✦</div>
-        <div>
-          <div class="action-panel-title">Fechar remessa do dia</div>
-          <div class="action-panel-desc">${prontos.length} venda${prontos.length !== 1 ? 's' : ''} pronta${prontos.length !== 1 ? 's' : ''} · Total a pagar à Porto Seguro: <strong>${fmtMoney(totalRemessa)}</strong></div>
-        </div>
-      </div>
-      <button class="btn btn-primary" id="btn-fechar-remessa">Fechar remessa${Icons.chevronR}</button>
-    </div>
-  ` : '';
 
   let listaHTML;
   if (activeTab === 'pronto') {
@@ -1796,8 +1781,6 @@ Screens.aprovacoes = function() {
 
     ${renderSearchBar()}
 
-    ${remessaPanel}
-
     ${listaHTML}
   `, 'aprovacoes');
 };
@@ -1818,82 +1801,123 @@ Screens.aprovacoesBind = function() {
     });
   });
 
-  const btnRemessa = document.getElementById('btn-fechar-remessa');
-  if (btnRemessa) {
-    btnRemessa.addEventListener('click', () => {
-      const campRecs = RECORDS.filter(r => r.campanhaId === State.campaign.id);
-      const prontos  = campRecs.filter(r => r.status === 'pronto');
-      if (prontos.length === 0) return;
-
-      const total    = prontos.reduce((s, r) => s + (r.valorComprovante || 0), 0);
-      const numSeq   = String(REMESSAS.length + 1).padStart(3, '0');
-      const remessaId = `REM-${numSeq}`;
-
-      openModal(`Fechar remessa ${remessaId}`,
-        `<div style="display:flex;flex-direction:column;gap:12px">
-          <div class="tag-info">
-            Ao confirmar, <strong>${prontos.length} venda${prontos.length !== 1 ? 's' : ''}</strong> serão marcadas como concluídas e incluídas na remessa <strong>${remessaId}</strong> para Porto Seguro.
-          </div>
-          <dl class="info-dl">
-            <dt>Remessa</dt>    <dd>${remessaId}</dd>
-            <dt>Vendas</dt>     <dd>${prontos.length}</dd>
-            <dt>Total</dt>      <dd><strong>${fmtMoney(total)}</strong></dd>
-          </dl>
-          <div style="max-height:160px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px 12px">
-            ${prontos.map(r => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px">
-              <span><strong>${r.id}</strong> · ${r.nomeCliente}</span>
-              <span>${fmtMoney(r.valorComprovante)}</span>
-            </div>`).join('')}
-          </div>
-          <div class="form-field" style="margin:0">
-            <label>Comprovante do pagamento à Porto Seguro <span class="req">*</span></label>
-            <input type="text" id="rem-comprovante" placeholder="Ex: comprovante_rem001.pdf ou nº da transferência" />
-          </div>
-        </div>`,
-        `<button class="btn btn-secondary" data-modal-close>Cancelar</button>
-         <button class="btn btn-primary" id="confirmar-remessa">Confirmar remessa</button>`
-      );
-
-      document.getElementById('confirmar-remessa').addEventListener('click', () => {
-        const compRef = document.getElementById('rem-comprovante')?.value?.trim();
-        if (!compRef) {
-          document.getElementById('rem-comprovante').style.borderColor = 'var(--red)';
-          return;
-        }
-        const now = new Date();
-        const ts  = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
-
-        const remessa = {
-          id:          remessaId,
-          data:        ts,
-          campanhaId:  State.campaign.id,
-          total:       total,
-          vendas:      prontos.map(r => r.id),
-          criadoPor:   `${State.persona.name} (Fase 2)`,
-          comprovante: compRef,
-        };
-        REMESSAS.push(remessa);
-
-        prontos.forEach(r => {
-          r.status    = 'concluida';
-          r.remessaId = remessaId;
-          r.history.push({
-            when: ts,
-            who:  `${State.persona.name} (Fase 2)`,
-            what: `Incluída na remessa ${remessaId} · paga à Porto Seguro`,
-          });
-        });
-
-        closeModal();
-        toast(`Remessa ${remessaId} fechada · ${prontos.length} venda${prontos.length !== 1 ? 's' : ''} concluída${prontos.length !== 1 ? 's' : ''}`, 'success');
-        Router.refresh();
-      });
-    });
-  }
-
   document.querySelectorAll('[data-ver-aprov]').forEach(btn => {
     btn.addEventListener('click', () => {
       location.hash = `#/ver-venda/${btn.dataset.verAprov}`;
+    });
+  });
+
+  bindVendaCardActions();
+};
+
+/* --- Fase 3 · Cobranças --- */
+
+Screens.cobrancas = function() {
+  const tab = State.filter.cobTab || 'absorvidas';
+
+  const absorvidas    = RECORDS.filter(r => r.diferencaAbsorvida);
+  const pendentes     = RECORDS.filter(r => r.status === 'diferenca_pendente');
+  const devolucoes    = RECORDS.filter(r => r.valorReal !== null && (r.valorReal - r.valorComprovante) < -0.005);
+  const cancelamentos = RECORDS.filter(r => r.status === 'cancelada' && r.cancelamento?.extornoNecessario);
+
+  const totalAbsorvido    = absorvidas.reduce((s, r) => s + (r.diferencaAbsorvida?.valor || 0), 0);
+  const totalPendente     = pendentes.reduce((s, r) => s + Math.max(0, (r.valorReal || 0) - r.valorComprovante), 0);
+  const totalDevolucao    = devolucoes.reduce((s, r) => s + Math.abs((r.valorReal || 0) - r.valorComprovante), 0);
+  const totalCancelamento = cancelamentos.reduce((s, r) => s + r.valorComprovante, 0);
+
+  const lista = tab === 'absorvidas' ? absorvidas
+    : tab === 'pendentes'     ? pendentes
+    : tab === 'cancelamentos' ? cancelamentos
+    : devolucoes;
+
+  function rowValor(r) {
+    if (tab === 'absorvidas')    return fmtMoney(r.diferencaAbsorvida?.valor);
+    if (tab === 'pendentes')     return fmtMoney(Math.max(0, (r.valorReal || 0) - r.valorComprovante));
+    if (tab === 'cancelamentos') return fmtMoney(r.valorComprovante);
+    return fmtMoney(Math.abs((r.valorReal || 0) - r.valorComprovante));
+  }
+
+  return renderShell(`
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Fase 3 · Cobranças e Devoluções</h1>
+        <p class="page-subtitle">Gestão de diferenças entre o que o cliente pagou e o valor do contrato</p>
+      </div>
+    </div>
+
+    <div class="cob-metrics">
+      <button class="cob-card accent-amber ${tab === 'absorvidas' ? 'active' : ''}" data-cob-tab="absorvidas">
+        <div class="cob-label">Porto Vale cobriu</div>
+        <div class="cob-value">${fmtMoney(totalAbsorvido)}</div>
+        <div class="cob-hint">${absorvidas.length} venda${absorvidas.length !== 1 ? 's' : ''} · a cobrar do Comercial</div>
+      </button>
+      <button class="cob-card accent-orange ${tab === 'pendentes' ? 'active' : ''}" data-cob-tab="pendentes">
+        <div class="cob-label">Diferença pendente</div>
+        <div class="cob-value">${fmtMoney(totalPendente)}</div>
+        <div class="cob-hint">${pendentes.length} venda${pendentes.length !== 1 ? 's' : ''} · a cobrar do cliente</div>
+      </button>
+      <button class="cob-card accent-blue ${tab === 'devolucoes' ? 'active' : ''}" data-cob-tab="devolucoes">
+        <div class="cob-label">A devolver ao cliente</div>
+        <div class="cob-value">${fmtMoney(totalDevolucao)}</div>
+        <div class="cob-hint">${devolucoes.length} venda${devolucoes.length !== 1 ? 's' : ''} · reembolso pendente</div>
+      </button>
+      <button class="cob-card accent-red ${tab === 'cancelamentos' ? 'active' : ''}" data-cob-tab="cancelamentos">
+        <div class="cob-label">Extornos de cancelamento</div>
+        <div class="cob-value">${fmtMoney(totalCancelamento)}</div>
+        <div class="cob-hint">${cancelamentos.length} venda${cancelamentos.length !== 1 ? 's' : ''} · extorno ao cliente</div>
+      </button>
+    </div>
+
+    ${lista.length === 0 ? `
+      <div class="empty-state">
+        <div class="ic">✓</div>
+        <h3>Nenhum registro nesta categoria</h3>
+        <p>Tudo certo por aqui.</p>
+      </div>
+    ` : `
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Pré-venda</th>
+              <th>Cliente</th>
+              <th>Comercial</th>
+              <th>Pago</th>
+              <th>Contrato</th>
+              <th>${tab === 'devolucoes' ? 'A devolver' : tab === 'cancelamentos' ? 'Valor pago' : 'Diferença'}</th>
+              ${tab === 'cancelamentos' ? '<th>Motivo</th>' : ''}
+              <th>Data</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lista.map(r => `
+              <tr>
+                <td><strong>${r.id}</strong></td>
+                <td>${r.nomeCliente}</td>
+                <td>${r.gerenteNome}</td>
+                <td>${fmtMoney(r.valorComprovante)}</td>
+                <td>${fmtMoney(r.valorReal)}</td>
+                <td><strong style="color:${tab === 'cancelamentos' ? 'var(--red)' : 'var(--amber)'}">${rowValor(r)}</strong></td>
+                ${tab === 'cancelamentos' ? `<td style="color:var(--text-mute);font-size:12px;max-width:200px">${r.cancelamento?.motivo || '—'}</td>` : ''}
+                <td style="color:var(--text-mute);font-size:12px">${fmtDateTime(r.dataHora)}</td>
+                <td>${statusChip(r.status)}</td>
+                <td><a href="#/ver-venda/${r.id}" class="btn btn-ghost btn-sm">Ver</a></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `}
+  `, 'cobrancas');
+};
+
+Screens.cobrancasBind = function() {
+  document.querySelectorAll('[data-cob-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      State.filter.cobTab = btn.dataset.cobTab;
+      Router.refresh();
     });
   });
 };
@@ -1981,14 +2005,76 @@ function renderVendaListHeader(showGerente) {
     <div class="venda-row venda-row-header">
       ${State.persona.role !== 'Comercial' ? '<div class="vcol-urgente">Urgente</div>' : ''}
       <div class="vcol-main">${showGerente ? 'Comercial · Cliente' : 'Cliente'}</div>
+
       <div class="vcol-doc">Comprovante</div>
       <div class="vcol-doc">Extrato</div>
       <div class="vcol-doc">Contrato</div>
       <div class="vcol-diff">Diferença</div>
+      <div class="vcol-boleto">Boleto</div>
       <div class="vcol-status">Status</div>
       <div class="vcol-action"></div>
     </div>
   `;
+}
+
+function renderBoletoCell(r, viewAs) {
+  const isFase2 = viewAs === 'backoffice';
+  if (r.boleto?.pago) {
+    return `<span class="icon-state ok" title="Boleto pago · ${r.boleto.pagoEm || ''}">✓</span>`;
+  }
+  if (r.status === 'pronto' && isFase2) {
+    return `<button class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px" data-pagar-boleto="${r.id}">Pagar</button>`;
+  }
+  return `<span style="color:var(--text-mute);font-size:13px">—</span>`;
+}
+
+function openDocModal(r, tipo) {
+  let titulo, conteudo;
+  if (tipo === 'comp' && r.comprovante) {
+    titulo = `Comprovante · ${r.comprovante.fileName}`;
+    conteudo = `
+      <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px">
+        <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">COMPROVANTE DE TRANSFERÊNCIA PIX</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+          <span style="color:#888">Tipo</span><span>PIX</span>
+          <span style="color:#888">Valor</span><span style="font-weight:700">${fmtMoney(r.valorComprovante)}</span>
+          <span style="color:#888">Pagador</span><span>${r.nomePagador}</span>
+          ${r.cpfPagador ? `<span style="color:#888">CPF/CNPJ</span><span>${r.cpfPagador}</span>` : ''}
+          <span style="color:#888">Favorecido</span><span>Porto Vale Consórcios</span>
+          <span style="color:#888">Data/Hora</span><span>${fmtDateTime(r.dataHora)}</span>
+          <span style="color:#888">Enviado em</span><span>${fmtDateTime(r.comprovante.uploadedAt)}</span>
+        </div>
+      </div>`;
+  } else if (tipo === 'ext' && r.extrato) {
+    titulo = `Extrato bancário · ${r.extrato.remetente}`;
+    conteudo = `
+      <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px">
+        <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">LANÇAMENTO — EXTRATO BANCÁRIO</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+          <span style="color:#888">Remetente</span><span>${r.extrato.remetente}</span>
+          <span style="color:#888">Valor</span><span style="font-weight:700">${fmtMoney(r.extrato.valor)}</span>
+          <span style="color:#888">Tipo</span><span>${r.extrato.tipo === 'manual' ? 'Vinculado manualmente' : 'Vinculado automaticamente'}</span>
+          <span style="color:#888">Conta</span><span>Porto Vale — C/C 12345-6</span>
+        </div>
+      </div>`;
+  } else if (tipo === 'cont' && r.contrato) {
+    titulo = `Contrato · ${r.contrato.fileName}`;
+    conteudo = `
+      <div style="background:#f5f7fa;border-radius:8px;padding:20px;font-family:monospace;font-size:13px">
+        <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:16px">CONTRATO DE CONSÓRCIO</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px">
+          <span style="color:#888">Nº Contrato</span><span style="font-weight:700">${r.contrato.numContrato}</span>
+          <span style="color:#888">Cliente</span><span>${r.nomeCliente}</span>
+          <span style="color:#888">Valor</span><span>${fmtMoney(r.valorReal)}</span>
+          <span style="color:#888">Arquivo</span><span>${r.contrato.fileName}</span>
+          <span style="color:#888">Enviado em</span><span>${fmtDateTime(r.contrato.uploadedAt)}</span>
+        </div>
+      </div>`;
+  } else { return; }
+  openModal(titulo, conteudo,
+    `<button class="btn btn-secondary" data-modal-close>Fechar</button>
+     <button class="btn btn-primary" onclick="toast('Download iniciado','success');closeModal()">⬇ Baixar</button>`
+  );
 }
 
 function renderDiffCell(r) {
@@ -2024,7 +2110,7 @@ function renderVendaCard(r, viewAs) {
   }
 
   return `
-    <div class="venda-row ${r.urgente && State.persona.role !== 'Comercial' ? 'urgente-row' : ''}" data-record="${r.id}">
+    <div class="venda-row ${r.urgente && State.persona.role !== 'Comercial' ? 'urgente-row' : ''} ${r.status === 'cancelada' ? 'cancelada-row' : ''}" data-record="${r.id}">
 
       ${State.persona.role !== 'Comercial' ? `
         <div class="vcol-urgente">
@@ -2035,15 +2121,20 @@ function renderVendaCard(r, viewAs) {
         <div class="venda-id">
           ${r.id}${!r.mesmoNomeContrato ? `<span class="badge-pagador">Pagador ≠ titular</span>` : ''}
         </div>
-        <div class="venda-name">${r.nomeCliente}</div>
+        <div class="venda-name">
+          ${r.nomeCliente}
+          ${isMine && r.diferencaAbsorvida ? `<span class="chip chip-amber" style="font-size:10px;padding:1px 6px;margin-left:6px" title="Porto Vale cobriu diferença de ${fmtMoney(r.diferencaAbsorvida.valor)}">PV cobriu ${fmtMoney(r.diferencaAbsorvida.valor)}</span>` : ''}
+        </div>
         <div class="venda-meta">${!isMine ? r.gerenteNome + ' · ' : ''}${fmtMoney(r.valorComprovante)} · ${fmtDateTime(r.dataHora)}</div>
       </div>
 
-      <div class="vcol-doc">${iconState(icons.comp)}</div>
-      <div class="vcol-doc">${iconState(icons.ext)}</div>
-      <div class="vcol-doc">${iconState(icons.cont)}</div>
+      <div class="vcol-doc">${icons.comp === 'ok' ? `<button class="icon-state ok icon-state-btn" data-doc-preview="comp" data-doc-id="${r.id}" title="Ver comprovante">✓</button>` : iconState(icons.comp)}</div>
+      <div class="vcol-doc">${icons.ext  === 'ok' ? `<button class="icon-state ok icon-state-btn" data-doc-preview="ext"  data-doc-id="${r.id}" title="Ver extrato">✓</button>`      : iconState(icons.ext)}</div>
+      <div class="vcol-doc">${icons.cont === 'ok' ? `<button class="icon-state ok icon-state-btn" data-doc-preview="cont" data-doc-id="${r.id}" title="Ver contrato">✓</button>`    : iconState(icons.cont)}</div>
 
       <div class="vcol-diff">${renderDiffCell(r)}</div>
+
+      <div class="vcol-boleto">${renderBoletoCell(r, viewAs)}</div>
 
       <div class="vcol-status">${statusChip(r.status)}</div>
 
@@ -2053,42 +2144,6 @@ function renderVendaCard(r, viewAs) {
   `;
 }
 
-function renderAprovacaoCard(r) {
-  const valorDiff = r.valorReal !== null && r.extrato
-    ? r.valorReal - r.extrato.valor
-    : null;
-
-  return `
-    <div class="aprov-card">
-      <div class="aprov-card-header">
-        <div>
-          <div class="aprov-card-id">${r.id} · ${r.gerenteNome}</div>
-          <div class="aprov-card-name">${r.nomeCliente}</div>
-          ${!r.mesmoNomeContrato ? `<div class="text-sm" style="color:var(--blue);margin-top:2px">Pagador: ${r.nomePagador} · ${r.motivoDiferenca}</div>` : ''}
-        </div>
-        ${statusChip(r.status)}
-      </div>
-
-      <div class="aprov-card-body">
-        <dl class="info-dl">
-          <dt>Comprovante</dt> <dd>${fmtMoney(r.valorComprovante)} · ${r.comprovante?.fileName || '—'}</dd>
-          <dt>Extrato</dt>     <dd>${r.extrato ? `${fmtMoney(r.extrato.valor)} · ${r.extrato.tipo === 'manual' ? 'vinculado manualmente' : 'automático'}` : '—'}</dd>
-          <dt>Valor real</dt>  <dd>${fmtMoney(r.valorReal)}</dd>
-          <dt>Contrato</dt>        <dd>${r.contrato?.numContrato || '—'}</dd>
-          ${valorDiff !== null && Math.abs(valorDiff) > 0.005 ? `
-            <dt>Diferença</dt>
-            <dd><span class="diff-badge ${valorDiff > 0 ? 'neg' : 'pos'}">${valorDiff > 0 ? '+' : ''}${fmtMoney(Math.abs(valorDiff))}</span></dd>
-          ` : ''}
-        </dl>
-      </div>
-
-      <div class="aprov-card-footer">
-        <button class="btn btn-ghost btn-sm" data-ver-aprov="${r.id}">Ver detalhes</button>
-        <button class="btn btn-primary" data-aprovar="${r.id}">Lançar contrato${Icons.chevronR}</button>
-      </div>
-    </div>
-  `;
-}
 
 function renderVendaDetalhe(r) {
   const icons = recordStatusIcons(r);
@@ -2104,6 +2159,7 @@ function renderVendaDetalhe(r) {
           <dt>Comercial</dt>      <dd>${r.gerenteNome}</dd>
           <dt>Vendedor</dt>     <dd>${r.nomeVendedor}</dd>
           <dt>Pagador</dt>      <dd>${r.nomePagador}</dd>
+          <dt>CPF/CNPJ</dt>    <dd>${r.cpfPagador || '—'}</dd>
           <dt>Cliente</dt>      <dd>${r.nomeCliente}</dd>
           ${!r.mesmoNomeContrato ? `<dt>Relação</dt><dd>${r.motivoDiferenca}</dd>` : ''}
           <dt>Data/Hora</dt>    <dd>${fmtDateTime(r.dataHora)}</dd>
@@ -2156,17 +2212,15 @@ function renderVendaDetalhe(r) {
           </div>
         ` : ''}
 
-        ${r.remessaId ? (() => {
-          const rem = REMESSAS.find(x => x.id === r.remessaId);
-          return `<div class="doc-status-row" style="margin-top:12px">
-            <div style="width:28px;height:28px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#166534;font-weight:700">✓</div>
+        ${r.boleto?.pago ? `
+          <div class="doc-status-row" style="margin-top:12px">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green);font-weight:700">✓</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:600">Comprovante · Porto Seguro</div>
-              <div class="text-sm muted">${r.remessaId}${rem ? ` · ${fmtDateTime(rem.data)} · ${rem.comprovante}` : ''}</div>
+              <div style="font-weight:600">Pagamento à Porto Seguro</div>
+              <div class="text-sm muted">${fmtDateTime(r.boleto.pagoEm)}${r.boleto.comprovante ? ` · ${r.boleto.comprovante}` : ''}</div>
             </div>
-            ${rem && rem.comprovante ? `<button class="btn btn-ghost btn-sm" data-ver-doc="remessa">Ver</button>` : ''}
-          </div>`;
-        })() : ''}
+          </div>
+        ` : ''}
       </div>
 
       <div class="card card-pad" style="overflow-y:auto;max-height:520px">
@@ -2175,9 +2229,10 @@ function renderVendaDetalhe(r) {
           ${(r.history || []).map(h => `
             <div class="timeline-item">
               <div class="timeline-dot"></div>
-              <div>
-                <div class="timeline-meta">${h.when} · ${h.who}</div>
-                <div class="timeline-what">${h.what}</div>
+              <div class="timeline-content">
+                <span class="who">${h.who}</span>
+                <span class="when">${h.when}</span>
+                <div class="what">${h.what}</div>
               </div>
             </div>
           `).join('')}
@@ -2290,10 +2345,11 @@ function hasActiveFilters() {
 
 function renderPrevVendasFilters(showGerente = false) {
   const activeLabel = {
-    aguardando_financeiro: 'Análise financeira',
+    aguardando_financeiro: 'Aguardando extrato',
     aguardando_contrato:   'Aguardando contrato',
     pronto:                'Pronto para aprovação',
     concluida:             'Concluída',
+    cancelada:             'Cancelada',
   }[State.filter.status];
 
   const currSuper = State.filter.superintendencia || 'all';
@@ -2424,7 +2480,119 @@ function bindHierarchyFilters() {
   });
 }
 
+function openCancelModal(r) {
+  const temExtrato = !!r.extrato;
+
+  openModal('Solicitar cancelamento',
+    `<div id="cancel-step-1">
+       <div style="margin-bottom:14px;font-size:13px;color:var(--muted)">
+         <strong style="color:var(--navy)">${r.nomeCliente}</strong>${r.cpfPagador ? ` · ${r.cpfPagador}` : ''}
+       </div>
+       <div class="form-field">
+         <label>Motivo do cancelamento <span class="req">*</span></label>
+         <textarea id="cancel-motivo" rows="3" placeholder="Descreva o motivo do cancelamento…" style="resize:vertical"></textarea>
+       </div>
+     </div>
+     <div id="cancel-step-2" style="display:none">
+       ${temExtrato ? `
+       <div style="background:var(--red-bg);border-left:3px solid var(--red);border-radius:6px;padding:10px 12px;font-size:12px;color:#8E2818;margin-bottom:14px">
+         <strong>Atenção:</strong> esta venda já tem PIX vinculado ao extrato. O financeiro será notificado para processar o extorno ao cliente.
+       </div>` : ''}
+       <div class="tag-info" style="margin-bottom:12px">
+         <strong>Confirmação de identidade</strong><br>
+         Digite o CPF/CNPJ do pagador para confirmar o cancelamento.
+       </div>
+       <div class="form-field">
+         <label>CPF/CNPJ do pagador <span class="req">*</span></label>
+         <input type="text" id="cancel-codigo" placeholder="${r.cpfPagador || 'CPF ou CNPJ'}"
+                style="font-family:monospace;font-size:15px;width:220px;display:block" />
+       </div>
+     </div>`,
+    `<button class="btn btn-secondary" data-modal-close>Fechar</button>
+     <button class="btn btn-danger" id="cancel-continuar">Continuar</button>`
+  );
+
+  const stripDoc = v => v.replace(/\D/g, '');
+
+  let step = 1;
+  document.getElementById('cancel-continuar').addEventListener('click', () => {
+    if (step === 1) {
+      const motivo = document.getElementById('cancel-motivo').value.trim();
+      if (!motivo) {
+        document.getElementById('cancel-motivo').style.outline = '2px solid var(--red)';
+        return;
+      }
+      document.getElementById('cancel-step-1').style.display = 'none';
+      document.getElementById('cancel-step-2').style.display = '';
+      document.getElementById('cancel-continuar').textContent = 'Confirmar cancelamento';
+      step = 2;
+    } else {
+      const digitado  = stripDoc(document.getElementById('cancel-codigo').value.trim());
+      const esperado  = stripDoc(r.cpfPagador || '');
+      if (!digitado || digitado !== esperado) {
+        document.getElementById('cancel-codigo').style.outline = '2px solid var(--red)';
+        toast('CPF/CNPJ incorreto. Tente novamente.', 'error');
+        return;
+      }
+      const motivo = document.getElementById('cancel-motivo').value.trim();
+      const now = new Date();
+      const ts  = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
+      r.status = 'cancelada';
+      r.cancelamento = { motivo, em: ts, por: State.persona.name, extornoNecessario: temExtrato };
+      r.history.push({ when: ts, who: `${State.persona.name} (Comercial)`, what: `Venda cancelada internamente · Motivo: ${motivo}` });
+      if (temExtrato) {
+        r.history.push({ when: ts, who: 'Sistema', what: 'Extorno pendente · financeiro notificado para devolver o valor ao cliente' });
+      }
+      closeModal();
+      toast(`Venda ${r.id} cancelada`, 'error');
+      Router.refresh();
+    }
+  });
+}
+
 function bindVendaCardActions() {
+  document.querySelectorAll('[data-pagar-boleto]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const r = findRecord(btn.dataset.pagarBoleto);
+      if (!r) return;
+      openModal(`Pagar boleto · ${r.nomeCliente}`,
+        `<dl class="info-dl" style="margin-bottom:16px">
+           <dt>Pré-venda</dt><dd>${r.id}</dd>
+           <dt>Cliente</dt>  <dd>${r.nomeCliente}</dd>
+           <dt>Valor</dt>    <dd>${fmtMoney(r.valorReal ?? r.valorComprovante)}</dd>
+         </dl>
+         <div class="form-field">
+           <label>Comprovante do pagamento à Porto Seguro <span class="req">*</span></label>
+           <input type="file" id="bol-comprovante" accept="image/*,.pdf" style="padding:6px" />
+         </div>`,
+        `<button class="btn btn-secondary" data-modal-close>Cancelar</button>
+         <button class="btn btn-primary" id="confirmar-pag-boleto">Confirmar pagamento</button>`
+      );
+      document.getElementById('confirmar-pag-boleto').addEventListener('click', () => {
+        const input = document.getElementById('bol-comprovante');
+        const comp = input.files?.[0]?.name || '';
+        if (!comp) { input.style.outline = '2px solid var(--red)'; return; }
+        const now = new Date();
+        const ts  = `${now.toISOString().slice(0,10)} ${now.toTimeString().slice(0,5)}`;
+        r.boleto = { pago: true, pagoEm: ts, comprovante: comp };
+        r.status = 'concluida';
+        r.history.push({ when: ts, who: `${State.persona.name} (Fase 2)`, what: `Boleto pago à Porto Seguro · ${comp}` });
+        closeModal();
+        toast(`Boleto pago · ${r.nomeCliente} concluída`, 'success');
+        Router.refresh();
+      });
+    });
+  });
+
+  document.querySelectorAll('[data-doc-preview]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const r = findRecord(btn.dataset.docId);
+      if (r) openDocModal(r, btn.dataset.docPreview);
+    });
+  });
+
   document.querySelectorAll('.check-urgente-row').forEach(chk => {
     chk.addEventListener('change', () => {
       const r = findRecord(chk.dataset.id);

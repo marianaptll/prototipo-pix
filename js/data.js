@@ -92,7 +92,8 @@ const PERSONAS = [
   { id: 'g41', role: 'Comercial', name: 'Paulo Caixeta',    initials: 'PC', superid: 'eagles', dirid: 'dunamis',   description: 'Diretoria Dunamis · Eagles'       },
   // ── Operacional ──
   { id: 'financeiro',     role: 'Fase 1', name: 'Marcelo Tavares', initials: 'MT', description: 'Importa extrato bancário e vincula valores'       },
-  { id: 'backoffice_adm', role: 'Fase 2', name: 'Patrícia Lopes',  initials: 'PL', description: 'Confere vendas prontas e fecha remessa para Porto Seguro' },
+  { id: 'backoffice_adm', role: 'Fase 2', name: 'Patrícia Lopes',  initials: 'PL', description: 'Confere vendas prontas e paga boletos para Porto Seguro' },
+  { id: 'fase3',          role: 'Fase 3', name: 'Roberta Lima',     initials: 'RL', description: 'Gestão de cobranças pendentes e devoluções ao cliente'   },
 ];
 
 const CAMPAIGNS = [
@@ -113,10 +114,14 @@ const CAMPAIGNS = [
     concluida              → cota lançada e venda encerrada
 */
 
-let REMESSAS = [];
-
 let RECORDS = [
-  // ── Carlos (g1 · Fênix / Lótus) ──
+  // ─────────────────────────────────────────────────────────────────
+  //  Cada registro representa UMA situação distinta do fluxo.
+  //  Use os filtros e telas para ver cada estado em ação.
+  // ─────────────────────────────────────────────────────────────────
+
+  // 1. AGUARDANDO EXTRATO — comprovante enviado, financeiro ainda não vinculou
+  //    Login: Carlos (g1)  |  Fase 1: aparece em "sem extrato" / conciliação
   {
     id: 'PV-001',
     campanhaId: 'CMP-2026-08',
@@ -140,6 +145,8 @@ let RECORDS = [
       { when: '2026-06-08 14:45', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
     ],
   },
+  // 2. AGUARDANDO CONTRATO — extrato auto-vinculado, gerente deve enviar contrato
+  //    Login: Carlos (g1)
   {
     id: 'PV-002',
     campanhaId: 'CMP-2026-08',
@@ -147,6 +154,7 @@ let RECORDS = [
     gerenteNome: 'Carlos Mendes',
     nomeVendedor: 'Carlos Mendes',
     nomePagador: 'Maria Oliveira',
+    cpfPagador: '321.456.789-00',
     nomeCliente: 'Maria Oliveira',
     mesmoNomeContrato: true,
     motivoDiferenca: '',
@@ -160,10 +168,13 @@ let RECORDS = [
     contrato: null,
     history: [
       { when: '2026-06-03 15:25', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-04 09:00', who: 'Sistema',          what: 'PIX vinculado automaticamente ao extrato bancário · R$ 980,00' },
-      { when: '2026-06-04 09:00', who: 'Sistema',          what: 'Aguardando envio do contrato pelo gerente' },
+      { when: '2026-06-04 09:00', who: 'Sistema', what: 'PIX vinculado automaticamente ao extrato bancário · R$ 980,00' },
     ],
   },
+
+  // 3. DIFERENÇA PENDENTE (faltou pagar) — cliente pagou menos que o contrato
+  //    Ação: Comercial precisa enviar comprovante complementar
+  //    Login: Carlos (g1)  |  Fase 3: aparece em "Diferença pendente"
   {
     id: 'PV-003',
     campanhaId: 'CMP-2026-08',
@@ -171,9 +182,9 @@ let RECORDS = [
     gerenteNome: 'Carlos Mendes',
     nomeVendedor: 'Carlos Mendes',
     nomePagador: 'Bruno Costa',
+    cpfPagador: '456.789.123-00',
     nomeCliente: 'Bruno Costa',
     mesmoNomeContrato: true,
-    urgente: true,
     motivoDiferenca: '',
     valorComprovante: 1180.00,
     dataHora: '2026-06-04 09:48',
@@ -187,18 +198,55 @@ let RECORDS = [
     chamadoReembolso: null,
     history: [
       { when: '2026-06-04 10:02', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-04 14:00', who: 'Sistema',          what: 'PIX vinculado ao extrato · R$ 1.180,00' },
-      { when: '2026-06-05 16:30', who: 'Carlos (Comercial)', what: 'Contrato enviado · valor real R$ 1.260 · Contrato 0894' },
-      { when: '2026-06-05 16:30', who: 'Sistema',          what: 'Diferença detectada · cliente pagou R$ 1.180 mas contrato exige R$ 1.260 · aguardando comprovante complementar de R$ 80,00' },
+      { when: '2026-06-04 14:00', who: 'Sistema', what: 'PIX vinculado automaticamente ao extrato · R$ 1.180,00' },
+      { when: '2026-06-05 16:30', who: 'Carlos (Comercial)', what: 'Contrato enviado · valor real R$ 1.260,00 · Contrato 0894' },
+      { when: '2026-06-05 16:30', who: 'Sistema', what: 'Diferença detectada · cliente pagou R$ 1.180,00 mas contrato exige R$ 1.260,00 · aguardando comprovante complementar de R$ 80,00' },
     ],
   },
+
+  // 4. DIFERENÇA PENDENTE (pagou a mais) + PAGADOR ≠ TITULAR
+  //    Ação: Comercial precisa abrir chamado de reembolso
+  //    Login: Renata (g4)  |  Fase 3: aparece em "A devolver ao cliente"
   {
-    id: 'PV-011',
+    id: 'PV-004',
     campanhaId: 'CMP-2026-08',
-    gerenteId: 'g1',
-    gerenteNome: 'Carlos Mendes',
-    nomeVendedor: 'Carlos Mendes',
+    gerenteId: 'g4',
+    gerenteNome: 'Renata Sales',
+    nomeVendedor: 'Fernanda Dias',
+    nomePagador: 'Helena Souza',
+    cpfPagador: '654.321.987-00',
+    nomeCliente: 'Pedro Souza',
+    mesmoNomeContrato: false,
+    motivoDiferenca: 'Mãe comprando para o filho',
+    valorComprovante: 1000.00,
+    dataHora: '2026-06-05 10:11',
+    comprovante: { fileName: 'pix_helena_souza.pdf', uploadedAt: '2026-06-05 10:20' },
+    observacao: 'Helena Souza (mãe) pagou em nome de Pedro Souza (filho)',
+    status: 'diferenca_pendente',
+    extrato: { remetente: 'HELENA SOUZA', valor: 1000.00, dataHora: '2026-06-05 10:11', tipo: 'manual' },
+    valorReal: 950.00,
+    contrato: { fileName: 'contrato_pedro_souza.pdf', uploadedAt: '2026-06-06 09:55', numContrato: '0896' },
+    comprovanteComplementar: null,
+    chamadoReembolso: null,
+    history: [
+      { when: '2026-06-05 10:20', who: 'Renata (Comercial)', what: 'Pré-venda criada · pagador ≠ titular (mãe → filho)' },
+      { when: '2026-06-05 15:00', who: 'Marcelo (Fase 1)', what: 'PIX vinculado manualmente · remetente: Helena Souza · R$ 1.000,00' },
+      { when: '2026-06-06 09:55', who: 'Renata (Comercial)', what: 'Contrato enviado · Contrato 0896' },
+      { when: '2026-06-06 09:55', who: 'Sistema', what: 'Pagamento excede o valor do contrato · R$ 50,00 a devolver ao cliente · aguardando abertura de chamado' },
+    ],
+  },
+
+  // 5. PRONTO — diferença pequena absorvida pela Porto Vale (≤ R$5)
+  //    Login: Juliana (g2)  |  Fase 2: aparece em "Prontas para remessa"
+  //    Fase 3: aparece em "Porto Vale cobriu"
+  {
+    id: 'PV-005',
+    campanhaId: 'CMP-2026-08',
+    gerenteId: 'g2',
+    gerenteNome: 'Juliana Faria',
+    nomeVendedor: 'Ana Paula Reis',
     nomePagador: 'Ana Beatriz Souza',
+    cpfPagador: '789.123.456-00',
     nomeCliente: 'Ana Beatriz Souza',
     mesmoNomeContrato: true,
     motivoDiferenca: '',
@@ -208,22 +256,56 @@ let RECORDS = [
     observacao: '',
     status: 'pronto',
     extrato: { remetente: 'ANA BEATRIZ SOUZA', valor: 1350.00, dataHora: '2026-06-07 11:05', tipo: 'auto' },
-    valorReal: 1350.00,
+    valorReal: 1355.00,
     contrato: { fileName: 'contrato_ana_beatriz.pdf', uploadedAt: '2026-06-08 10:40', numContrato: '0901' },
+    diferencaAbsorvida: { valor: 5.00, absorvidaEm: '2026-06-08 10:40' },
     history: [
-      { when: '2026-06-07 11:15', who: 'Carlos (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-07 16:00', who: 'Sistema',          what: 'PIX vinculado automaticamente ao extrato · R$ 1.350,00' },
-      { when: '2026-06-08 10:40', who: 'Carlos (Comercial)', what: 'Contrato enviado · valor real R$ 1.350,00 · Contrato 0901' },
-      { when: '2026-06-08 10:40', who: 'Sistema',          what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' },
+      { when: '2026-06-07 11:15', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-07 16:00', who: 'Sistema', what: 'PIX vinculado automaticamente ao extrato · R$ 1.350,00' },
+      { when: '2026-06-08 10:40', who: 'Juliana (Comercial)', what: 'Contrato enviado · valor real R$ 1.355,00 · Contrato 0901' },
+      { when: '2026-06-08 10:40', who: 'Sistema', what: 'Diferença de R$ 5,00 absorvida pela Porto Vale · venda pronta para aprovação' },
     ],
   },
+
+  // 6. PRONTO — fluxo normal, sem diferença
+  //    Login: Eduardo (g3)  |  Fase 2: aparece em "Prontas para remessa"
   {
-    id: 'PV-012',
+    id: 'PV-006',
     campanhaId: 'CMP-2026-08',
-    gerenteId: 'g1',
-    gerenteNome: 'Carlos Mendes',
-    nomeVendedor: 'Carlos Mendes',
+    gerenteId: 'g3',
+    gerenteNome: 'Eduardo Pinho',
+    nomeVendedor: 'Lucas Ferreira',
+    nomePagador: 'Carla Fontana',
+    cpfPagador: '112.233.445-56',
+    nomeCliente: 'Carla Fontana',
+    mesmoNomeContrato: true,
+    motivoDiferenca: '',
+    valorComprovante: 1380.00,
+    dataHora: '2026-06-07 14:40',
+    comprovante: { fileName: 'pix_carla_fontana.pdf', uploadedAt: '2026-06-07 14:50' },
+    observacao: '',
+    status: 'pronto',
+    extrato: { remetente: 'CARLA FONTANA', valor: 1380.00, dataHora: '2026-06-07 14:40', tipo: 'auto' },
+    valorReal: 1380.00,
+    contrato: { fileName: 'contrato_carla_fontana.pdf', uploadedAt: '2026-06-08 09:00', numContrato: '0910' },
+    history: [
+      { when: '2026-06-07 14:50', who: 'Eduardo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-08 09:00', who: 'Sistema', what: 'PIX vinculado automaticamente ao extrato · R$ 1.380,00' },
+      { when: '2026-06-08 09:00', who: 'Eduardo (Comercial)', what: 'Contrato enviado · Contrato 0910' },
+      { when: '2026-06-08 09:00', who: 'Sistema', what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' },
+    ],
+  },
+
+  // 7. CONCLUÍDA — boleto pago à Porto Seguro
+  //    Login: Otávio (g21)  |  Fase 2: aparece em "Concluídas"
+  {
+    id: 'PV-007',
+    campanhaId: 'CMP-2026-08',
+    gerenteId: 'g21',
+    gerenteNome: 'Otávio Cunha',
+    nomeVendedor: 'Otávio Cunha',
     nomePagador: 'Ricardo Alves',
+    cpfPagador: '223.344.556-67',
     nomeCliente: 'Ricardo Alves',
     mesmoNomeContrato: true,
     motivoDiferenca: '',
@@ -235,243 +317,26 @@ let RECORDS = [
     extrato: { remetente: 'RICARDO ALVES', valor: 1120.00, dataHora: '2026-06-02 09:30', tipo: 'auto' },
     valorReal: 1120.00,
     contrato: { fileName: 'contrato_ricardo_alves.pdf', uploadedAt: '2026-06-03 14:20', numContrato: '0887' },
+    boleto: { pago: true, pagoEm: '2026-06-04 09:00', comprovante: 'boleto_pv007.pdf' },
     history: [
-      { when: '2026-06-02 09:42', who: 'Carlos (Comercial)',     what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-02 15:00', who: 'Sistema',              what: 'PIX vinculado automaticamente ao extrato · R$ 1.120,00' },
-      { when: '2026-06-03 14:20', who: 'Carlos (Comercial)',     what: 'Contrato enviado · Contrato 0887' },
-      { when: '2026-06-04 09:00', who: 'Patrícia (Fase 2)', what: 'Contrato 0887 lançado na administradora · venda concluída' },
+      { when: '2026-06-02 09:42', who: 'Otávio (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-02 15:00', who: 'Sistema', what: 'PIX vinculado automaticamente ao extrato · R$ 1.120,00' },
+      { when: '2026-06-03 14:20', who: 'Otávio (Comercial)', what: 'Contrato enviado · Contrato 0887' },
+      { when: '2026-06-03 14:20', who: 'Sistema', what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' },
+      { when: '2026-06-04 09:00', who: 'Patrícia (Fase 2)', what: 'Boleto pago à Porto Seguro · boleto_pv007.pdf' },
     ],
   },
 
-  // ── Juliana (g2 · Diamantes / Lótus) ──
-  {
-    id: 'PV-004',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g2',
-    gerenteNome: 'Juliana Faria',
-    nomeVendedor: 'Ana Paula Reis',
-    nomePagador: 'Roberta Almeida',
-    nomeCliente: 'Roberta Almeida',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1400.00,
-    dataHora: '2026-06-04 11:22',
-    comprovante: { fileName: 'pix_roberta.pdf', uploadedAt: '2026-06-04 11:30' },
-    observacao: 'Cliente ligou confirmando pagamento',
-    status: 'aguardando_financeiro',
-    extrato: null,
-    valorReal: null,
-    contrato: null,
-    history: [
-      { when: '2026-06-04 11:30', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-    ],
-  },
-  {
-    id: 'PV-005',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g2',
-    gerenteNome: 'Juliana Faria',
-    nomeVendedor: 'Rafael Costa',
-    nomePagador: 'Diego Martins',
-    nomeCliente: 'Diego Martins',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1080.00,
-    dataHora: '2026-06-06 09:21',
-    comprovante: { fileName: 'pix_diego.pdf', uploadedAt: '2026-06-06 09:30' },
-    observacao: '',
-    status: 'aguardando_contrato',
-    extrato: { remetente: 'DIEGO MARTINS', valor: 1080.00, dataHora: '2026-06-06 09:21', tipo: 'auto' },
-    valorReal: null,
-    contrato: null,
-    history: [
-      { when: '2026-06-06 09:30', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-06 16:00', who: 'Sistema',           what: 'PIX vinculado ao extrato · R$ 1.080,00' },
-    ],
-  },
-  {
-    id: 'PV-006',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g2',
-    gerenteNome: 'Juliana Faria',
-    nomeVendedor: 'Ana Paula Reis',
-    nomePagador: 'Vinícius Reis',
-    nomeCliente: 'Vinícius Reis',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1260.00,
-    dataHora: '2026-06-08 08:15',
-    comprovante: { fileName: 'pix_vinicius.pdf', uploadedAt: '2026-06-08 08:25' },
-    observacao: '',
-    status: 'pronto',
-    extrato: { remetente: 'VINICIUS REIS', valor: 1260.00, dataHora: '2026-06-08 08:15', tipo: 'auto' },
-    valorReal: 1260.00,
-    contrato: { fileName: 'contrato_vinicius.pdf', uploadedAt: '2026-06-09 09:10', numContrato: '0898' },
-    history: [
-      { when: '2026-06-08 08:25', who: 'Juliana (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-08 14:00', who: 'Sistema',           what: 'PIX vinculado ao extrato · R$ 1.260,00' },
-      { when: '2026-06-09 09:10', who: 'Juliana (Comercial)', what: 'Contrato enviado · Contrato 0898' },
-    ],
-  },
-
-  // ── Eduardo (g3 · Atena / Lótus) ──
-  {
-    id: 'PV-007',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g3',
-    gerenteNome: 'Eduardo Pinho',
-    nomeVendedor: 'Lucas Ferreira',
-    nomePagador: 'Larissa Vieira',
-    nomeCliente: 'Larissa Vieira',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1320.00,
-    dataHora: '2026-06-05 16:12',
-    comprovante: { fileName: 'pix_larissa.pdf', uploadedAt: '2026-06-05 16:20' },
-    observacao: '',
-    status: 'pronto',
-    extrato: { remetente: 'LARISSA VIEIRA', valor: 1320.00, dataHora: '2026-06-05 16:12', tipo: 'auto' },
-    valorReal: 1320.00,
-    contrato: { fileName: 'contrato_larissa.pdf', uploadedAt: '2026-06-06 11:00', numContrato: '0897' },
-    history: [
-      { when: '2026-06-05 16:20', who: 'Eduardo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-06 08:00', who: 'Sistema',           what: 'PIX vinculado ao extrato · R$ 1.320,00' },
-      { when: '2026-06-06 11:00', who: 'Eduardo (Comercial)', what: 'Contrato enviado · Contrato 0897' },
-    ],
-  },
+  // 8. CANCELADA sem extorno — cancelada antes de vincular extrato
+  //    Login: Aline (g26)
   {
     id: 'PV-008',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g3',
-    gerenteNome: 'Eduardo Pinho',
-    nomeVendedor: 'Lucas Ferreira',
-    nomePagador: 'Camila Andrade',
-    nomeCliente: 'Camila Andrade',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1450.00,
-    dataHora: '2026-06-07 10:00',
-    comprovante: { fileName: 'pix_camila.pdf', uploadedAt: '2026-06-07 10:12' },
-    observacao: 'Pagamento feito por transferência antes do PIX ser configurado',
-    status: 'aguardando_financeiro',
-    extrato: null,
-    valorReal: null,
-    contrato: null,
-    history: [
-      { when: '2026-06-07 10:12', who: 'Eduardo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-    ],
-  },
-
-  // ── Renata (g4 · Anjos / Lótus) ──
-  {
-    id: 'PV-009',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g4',
-    gerenteNome: 'Renata Sales',
-    nomeVendedor: 'Fernanda Dias',
-    nomePagador: 'Helena Souza',
-    nomeCliente: 'Pedro Souza',
-    mesmoNomeContrato: false,
-    motivoDiferenca: 'Mãe comprando para o filho',
-    valorComprovante: 1000.00,
-    dataHora: '2026-06-05 10:11',
-    comprovante: { fileName: 'pix_helena_souza.pdf', uploadedAt: '2026-06-05 10:20' },
-    observacao: 'Mãe (Helena Souza) pagando em nome do filho (Pedro Souza)',
-    status: 'diferenca_pendente',
-    extrato: { remetente: 'HELENA SOUZA', valor: 1000.00, dataHora: '2026-06-05 10:11', tipo: 'manual' },
-    valorReal: 950.00,
-    contrato: { fileName: 'contrato_pedro_souza.pdf', uploadedAt: '2026-06-06 09:55', numContrato: '0896' },
-    comprovanteComplementar: null,
-    chamadoReembolso: null,
-    history: [
-      { when: '2026-06-05 10:20', who: 'Renata (Comercial)',     what: 'Pré-venda criada · pagador ≠ titular (mãe → filho)' },
-      { when: '2026-06-05 15:00', who: 'Marcelo (Fase 1)', what: 'PIX vinculado manualmente · remetente: Helena Souza' },
-      { when: '2026-06-06 09:55', who: 'Renata (Comercial)',     what: 'Contrato enviado · Contrato 0896' },
-      { when: '2026-06-06 09:55', who: 'Sistema',              what: 'Pagamento excede o valor do contrato · R$ 50,00 a devolver ao cliente · aguardando abertura de chamado' },
-    ],
-  },
-  {
-    id: 'PV-010',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g4',
-    gerenteNome: 'Renata Sales',
-    nomeVendedor: 'Tiago Moraes',
-    nomePagador: 'Tatiana Lima',
-    nomeCliente: 'Tatiana Lima',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1100.00,
-    dataHora: '2026-06-06 13:00',
-    comprovante: { fileName: 'pix_tatiana_lima.jpg', uploadedAt: '2026-06-06 13:18' },
-    observacao: 'Cliente confirmou pagamento por telefone às 13h',
-    status: 'aguardando_contrato',
-    extrato: { remetente: 'TATIANA LIMA', valor: 1100.00, dataHora: '2026-06-06 13:00', tipo: 'manual' },
-    valorReal: null,
-    contrato: null,
-    history: [
-      { when: '2026-06-06 13:18', who: 'Renata (Comercial)',     what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-07 11:00', who: 'Marcelo (Fase 1)', what: 'PIX vinculado manualmente · R$ 1.100,00' },
-    ],
-  },
-
-  // ── Otávio (g21 · Groove / Lótus) ──
-  {
-    id: 'PV-013',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g21',
-    gerenteNome: 'Otávio Cunha',
-    nomeVendedor: 'Otávio Cunha',
-    nomePagador: 'Rodrigo Silva',
-    nomeCliente: 'Rodrigo Silva',
-    urgente: true,
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1190.00,
-    dataHora: '2026-06-09 10:15',
-    comprovante: { fileName: 'pix_rodrigo_silva.pdf', uploadedAt: '2026-06-09 10:22' },
-    observacao: '',
-    status: 'aguardando_financeiro',
-    extrato: null,
-    valorReal: null,
-    contrato: null,
-    history: [
-      { when: '2026-06-09 10:22', who: 'Otávio (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-    ],
-  },
-
-  // ── Aline (g26 · Aya / Eagles) ──
-  {
-    id: 'PV-014',
     campanhaId: 'CMP-2026-08',
     gerenteId: 'g26',
     gerenteNome: 'Aline Nascimento',
     nomeVendedor: 'Aline Nascimento',
-    nomePagador: 'Carla Fontana',
-    nomeCliente: 'Carla Fontana',
-    mesmoNomeContrato: true,
-    motivoDiferenca: '',
-    valorComprovante: 1380.00,
-    dataHora: '2026-06-07 14:40',
-    comprovante: { fileName: 'pix_carla_fontana.pdf', uploadedAt: '2026-06-07 14:50' },
-    observacao: '',
-    status: 'aguardando_contrato',
-    extrato: { remetente: 'CARLA FONTANA', valor: 1380.00, dataHora: '2026-06-07 14:40', tipo: 'auto' },
-    valorReal: null,
-    contrato: null,
-    history: [
-      { when: '2026-06-07 14:50', who: 'Aline (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-08 09:00', who: 'Sistema',         what: 'PIX vinculado automaticamente ao extrato · R$ 1.380,00' },
-    ],
-  },
-
-  // ── André (g31 · Quimera / Eagles) ──
-  {
-    id: 'PV-015',
-    campanhaId: 'CMP-2026-08',
-    gerenteId: 'g31',
-    gerenteNome: 'André Silveira',
-    nomeVendedor: 'André Silveira',
     nomePagador: 'Felipe Drummond',
+    cpfPagador: '334.455.667-78',
     nomeCliente: 'Felipe Drummond',
     mesmoNomeContrato: true,
     motivoDiferenca: '',
@@ -479,26 +344,28 @@ let RECORDS = [
     dataHora: '2026-06-05 11:00',
     comprovante: { fileName: 'pix_felipe_drummond.pdf', uploadedAt: '2026-06-05 11:12' },
     observacao: '',
-    status: 'pronto',
-    extrato: { remetente: 'FELIPE DRUMMOND', valor: 1560.00, dataHora: '2026-06-05 11:00', tipo: 'auto' },
-    valorReal: 1560.00,
-    contrato: { fileName: 'contrato_felipe_drummond.pdf', uploadedAt: '2026-06-06 15:30', numContrato: '0910' },
+    status: 'cancelada',
+    extrato: null,
+    valorReal: null,
+    contrato: null,
+    cancelamento: { motivo: 'Cliente desistiu — não tem mais interesse no consórcio', em: '2026-06-05 14:30', por: 'Aline Nascimento', extornoNecessario: false },
     history: [
-      { when: '2026-06-05 11:12', who: 'André (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-05 16:00', who: 'Sistema',         what: 'PIX vinculado automaticamente ao extrato · R$ 1.560,00' },
-      { when: '2026-06-06 15:30', who: 'André (Comercial)', what: 'Contrato enviado · Contrato 0910' },
-      { when: '2026-06-06 15:30', who: 'Sistema',         what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' },
+      { when: '2026-06-05 11:12', who: 'Aline (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-05 14:30', who: 'Aline (Comercial)', what: 'Venda cancelada internamente · Motivo: Cliente desistiu — não tem mais interesse no consórcio' },
     ],
   },
 
-  // ── Kamila (g36 · Bell Breakers / Eagles) ──
+  // 9. CANCELADA com extorno — cancelada após PIX já vinculado ao extrato
+  //    Login: André (g31)  |  Fase 3: aparece em "Extornos de cancelamento"
+  //    Fase 1: exibe aviso de extorno pendente
   {
-    id: 'PV-016',
+    id: 'PV-009',
     campanhaId: 'CMP-2026-08',
-    gerenteId: 'g36',
-    gerenteNome: 'Kamila Ribeiro',
-    nomeVendedor: 'Kamila Ribeiro',
+    gerenteId: 'g31',
+    gerenteNome: 'André Silveira',
+    nomeVendedor: 'André Silveira',
     nomePagador: 'Juliana Castro',
+    cpfPagador: '445.566.778-89',
     nomeCliente: 'Juliana Castro',
     mesmoNomeContrato: true,
     motivoDiferenca: '',
@@ -506,286 +373,87 @@ let RECORDS = [
     dataHora: '2026-06-01 13:30',
     comprovante: { fileName: 'pix_juliana_castro.pdf', uploadedAt: '2026-06-01 13:42' },
     observacao: '',
-    status: 'concluida',
+    status: 'cancelada',
     extrato: { remetente: 'JULIANA CASTRO', valor: 1050.00, dataHora: '2026-06-01 13:30', tipo: 'auto' },
-    valorReal: 1050.00,
-    contrato: { fileName: 'contrato_juliana_castro.pdf', uploadedAt: '2026-06-02 10:15', numContrato: '0905' },
+    valorReal: null,
+    contrato: null,
+    cancelamento: { motivo: 'Contrato recusado pela seguradora · CPF com restrição interna', em: '2026-06-03 10:15', por: 'André Silveira', extornoNecessario: true },
     history: [
-      { when: '2026-06-01 13:42', who: 'Kamila (Comercial)',     what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-01 18:00', who: 'Sistema',              what: 'PIX vinculado automaticamente ao extrato · R$ 1.050,00' },
-      { when: '2026-06-02 10:15', who: 'Kamila (Comercial)',     what: 'Contrato enviado · Contrato 0905' },
-      { when: '2026-06-02 17:00', who: 'Patrícia (Fase 2)', what: 'Contrato 0905 lançado na administradora · venda concluída' },
+      { when: '2026-06-01 13:42', who: 'André (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-01 18:00', who: 'Sistema', what: 'PIX vinculado automaticamente ao extrato · R$ 1.050,00' },
+      { when: '2026-06-03 10:15', who: 'André (Comercial)', what: 'Venda cancelada internamente · Motivo: Contrato recusado pela seguradora · CPF com restrição interna' },
+      { when: '2026-06-03 10:15', who: 'Sistema', what: 'Extorno pendente · financeiro notificado para devolver o valor ao cliente' },
     ],
   },
 
-  // ── Paulo (g41 · Dunamis / Eagles) ──
+  // 10. AGUARDANDO CONTRATO — urgente, de outra superintendência (Eagles)
+  //     Demonstra filtros de hierarquia (Supt / Diretoria / Comercial) e urgência
+  //     Login: Kamila (g36)
   {
-    id: 'PV-017',
+    id: 'PV-010',
     campanhaId: 'CMP-2026-08',
-    gerenteId: 'g41',
-    gerenteNome: 'Paulo Caixeta',
-    nomeVendedor: 'Paulo Caixeta',
-    nomePagador: 'Marcos Vinicius',
-    nomeCliente: 'Marcos Vinicius',
+    gerenteId: 'g36',
+    gerenteNome: 'Kamila Ribeiro',
+    nomeVendedor: 'Kamila Ribeiro',
+    nomePagador: 'Tatiana Lima',
+    cpfPagador: '556.677.889-90',
+    nomeCliente: 'Tatiana Lima',
     mesmoNomeContrato: true,
     motivoDiferenca: '',
+    urgente: true,
     valorComprovante: 1300.00,
     dataHora: '2026-06-08 16:00',
-    comprovante: { fileName: 'pix_marcos_vinicius.pdf', uploadedAt: '2026-06-08 16:10' },
-    observacao: '',
-    status: 'diferenca_pendente',
-    extrato: { remetente: 'MARCOS VINICIUS', valor: 1300.00, dataHora: '2026-06-08 16:00', tipo: 'auto' },
-    valorReal: 1250.00,
-    contrato: { fileName: 'contrato_marcos_vinicius.pdf', uploadedAt: '2026-06-09 09:00', numContrato: '0921' },
-    comprovanteComplementar: null,
-    chamadoReembolso: null,
+    comprovante: { fileName: 'pix_tatiana_lima.jpg', uploadedAt: '2026-06-08 16:10' },
+    observacao: 'Cliente com prazo apertado para fechar',
+    status: 'aguardando_contrato',
+    extrato: { remetente: 'TATIANA LIMA', valor: 1300.00, dataHora: '2026-06-08 16:00', tipo: 'manual' },
+    valorReal: null,
+    contrato: null,
     history: [
-      { when: '2026-06-08 16:10', who: 'Paulo (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-      { when: '2026-06-08 18:00', who: 'Sistema',         what: 'PIX vinculado automaticamente ao extrato · R$ 1.300,00' },
-      { when: '2026-06-09 09:00', who: 'Paulo (Comercial)', what: 'Contrato enviado · Contrato 0921' },
-      { when: '2026-06-09 09:00', who: 'Sistema',         what: 'Pagamento excede o valor do contrato · R$ 50,00 a devolver ao cliente · aguardando abertura de chamado' },
+      { when: '2026-06-08 16:10', who: 'Kamila (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
+      { when: '2026-06-09 09:00', who: 'Marcelo (Fase 1)', what: 'PIX vinculado manualmente · R$ 1.300,00' },
+      { when: '2026-06-09 09:05', who: 'Marcelo (Fase 1)', what: 'Marcado como urgente' },
     ],
   },
 ];
 
-// ── Gerador de registros adicionais — stress test 200 pré-vendas ──
-(function gerarRegistros() {
-  const nomesFirst = [
-    'Ana','Beatriz','Camila','Carla','Carolina','Daniela','Débora','Elisa','Fernanda','Gabriela',
-    'Helena','Isabela','Juliana','Karen','Larissa','Laura','Letícia','Lívia','Luiza','Mariana',
-    'Mônica','Natália','Patrícia','Priscila','Rafaela','Renata','Sabrina','Simone','Tatiane','Vanessa',
-    'Vitória','Yasmin','André','Bruno','Carlos','Daniel','Diego','Eduardo','Felipe','Fernando',
-    'Flávio','Gabriel','Gustavo','Henrique','João','Jorge','José','Leonardo','Lucas','Luís',
-    'Marcelo','Marcos','Mateus','Otávio','Paulo','Pedro','Rafael','Renato','Ricardo','Roberto',
-    'Rodrigo','Sérgio','Thiago','Victor',
-  ];
-  const nomesLast = [
-    'Almeida','Alves','Andrade','Araújo','Barbosa','Batista','Borges','Campos','Cardoso','Carvalho',
-    'Castro','Coelho','Correia','Costa','Cunha','Dias','Faria','Ferreira','Figueiredo','Fontes',
-    'Freitas','Gomes','Gonçalves','Guimarães','Lima','Lopes','Machado','Marques','Martins','Melo',
-    'Mendes','Miranda','Monteiro','Moraes','Moreira','Moura','Nascimento','Nunes','Oliveira','Paiva',
-    'Pereira','Pinheiro','Pinto','Pires','Ramos','Reis','Ribeiro','Rocha','Rodrigues','Sales',
-    'Santos','Silva','Silveira','Sousa','Souza','Tavares','Teixeira','Torres','Vieira','Xavier',
-  ];
-  const vendedoresPorGerente = {
-    g1: ['Carlos Mendes','Paulo Freire','Sandra Lima'],         g2: ['Juliana Faria','Ana Paula Reis','Rafael Costa'],
-    g3: ['Eduardo Pinho','Lucas Ferreira','Carla Mendes'],      g4: ['Renata Sales','Fernanda Dias','Tiago Moraes'],
-    g5: ['Fernanda Lima','Carlos Mota','Aline Torres'],         g6: ['Ricardo Souza','Ana Torres','Bruno Prado'],
-    g7: ['Marcos Figueiredo','Silvia Prado','Felipe Neto'],     g8: ['Daniela Rocha','Pedro Esteves','Vanessa Melo'],
-    g9: ['Rafael Alves','Paula Cunha','Lucas Borges'],          g10:['Carolina Pires','João Batista','Mariana Gomes'],
-    g11:['Thiago Santos','Renata Borges','Diego Lopes'],        g12:['Amanda Melo','Felipe Leal','Simone Cruz'],
-    g13:['Lucas Vieira','Cecília Ramos','Antônio Faria'],       g14:['Beatriz Campos','Eduardo Neto','Priscila Sá'],
-    g15:['Henrique Nunes','Patrícia Costa','Jorge Lima'],       g16:['Sofia Martins','Diogo Freitas','Clara Duarte'],
-    g17:['Felipe Ramos','Maria Clara','Sandro Moura'],          g18:['Larissa Ferreira','Roberto Dias','Cíntia Pires'],
-    g19:['Bruno Teixeira','Sônia Ribeiro','Fábio Cunha'],       g20:['Vanessa Oliveira','Cláudio Pinto','Rita Soares'],
-    g21:['Otávio Cunha','Amanda Souza','Paulo Sá'],             g22:['Isabela Moreira','Jorge Lima','Vera Matos'],
-    g23:['Caio Barros','Tatiana Mota','Nilson Ramos'],          g24:['Priscila Gomes','André Cunha','Mário Fonseca'],
-    g25:['Rodrigo Carvalho','Fernanda Saes','Celso Neves'],     g26:['Aline Nascimento','Marcos Duarte','Eliane Costa'],
-    g27:['Diego Monteiro','Carla Neves','Rogério Brito'],       g28:['Tatiane Araújo','Nelson Faria','Estela Lima'],
-    g29:['Victor Correia','Bianca Moura','Flávio Teles'],       g30:['Mônica Freitas','Leandro Pires','Sandra Maia'],
-    g31:['André Silveira','Flávia Costa','Wilson Braga'],       g32:['Débora Pereira','Renato Lopes','Glória Santos'],
-    g33:['Gustavo Moura','Simone Alves','Cássio Ramos'],        g34:['Ingrid Borges','Walter Santos','Ivone Cruz'],
-    g35:['Leonardo Lima','Cristina Melo','Paulo Brum'],         g36:['Kamila Ribeiro','Paulo Ferreira','Leda Braga'],
-    g37:['Fábio Azevedo','Luciana Rocha','Cleber Matos'],       g38:['Natália Cavalcanti','Rodrigo Pinho','Diana Luz'],
-    g39:['Sérgio Paiva','Vanessa Correia','Edson Faria'],       g40:['Juliane Matos','Eduardo Macedo','Sílvia Nunes'],
-    g41:['Paulo Caixeta','Sônia Batista','Davi Rocha'],         g42:['Adriana Lopes','Ricardo Maia','Elza Correia'],
-    g43:['Roberto Vieira','Larissa Andrade','Ciro Pinto'],      g44:['Simone Queiroz','Carlos Neto','Tereza Moura'],
-    g45:['Tiago Rodrigues','Mariana Teles','Rui Campos'],
-  };
-
-  const managerIds = Object.keys(vendedoresPorGerente);
-  const mgMap = {};
-  MANAGERS.forEach(function(g) { mgMap[g.id] = g; });
-
-  // status weights: 30% ag_fin, 25% ag_cont, 10% diferenca, 20% pronto, 15% concluida
-  const statuses    = ['aguardando_financeiro','aguardando_contrato','diferenca_pendente','pronto','concluida'];
-  const statusBuckets = [30, 55, 65, 85, 100];
-
-  function pickStatus(i) {
-    var v = (i * 7 + 13) % 100;
-    for (var j = 0; j < statusBuckets.length; j++) {
-      if (v < statusBuckets[j]) return statuses[j];
-    }
-    return statuses[statuses.length - 1];
-  }
-
-  function pick(arr, i) { return arr[Math.abs(i) % arr.length]; }
-
-  function pad2(n) { return String(n).padStart(2, '0'); }
-
-  function fmtDate(day, hour, min) {
-    return '2026-06-' + pad2(Math.min(Math.max(day, 1), 14)) + ' ' + pad2(Math.min(hour, 23)) + ':' + pad2(Math.min(min, 59));
-  }
-
-  function slug(name) {
-    return name.toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-  }
-
-  var diffValues = [50, 80, 100, 120, 150];
-  var contratoSeq = 921;
-
-  for (var i = 18; i <= 200; i++) {
-    var mgid   = pick(managerIds, i * 7 + 13);
-    var mgObj  = mgMap[mgid];
-    var mgName = mgObj ? mgObj.name : 'Gerente';
-    var mgFirst = mgName.split(' ')[0];
-
-    var vendedor = pick(vendedoresPorGerente[mgid] || [mgName], i + 5);
-
-    var pagFirst = pick(nomesFirst, i * 2 + 3);
-    var pagLast  = pick(nomesLast,  i * 3 + 11);
-    var pagador  = pagFirst + ' ' + pagLast;
-
-    var diffPag  = (i % 20 === 0);
-    var cliFirst = diffPag ? pick(nomesFirst, i * 4 + 7)  : pagFirst;
-    var cliLast  = diffPag ? pick(nomesLast,  i * 5 + 19) : pagLast;
-    var cliente  = cliFirst + ' ' + cliLast;
-
-    var valores = [800,900,980,1000,1050,1080,1100,1120,1150,1180,1200,1240,1260,1300,1320,1350,1380,1400,1450,1500,1560,1600,1650,1700,1750,1800,1900,2000];
-    var valor = pick(valores, i * 7 + 3);
-
-    var day  = ((i * 3 + 1) % 14) + 1;
-    var hour = ((i * 5 + 8) % 10) + 8;
-    var min  = (i * 7) % 60;
-    var dataHora   = fmtDate(day, hour, min);
-    var uploadedAt = fmtDate(day, hour + 1 > 17 ? 8 : hour + 1, (min + 15) % 60);
-
-    var status = pickStatus(i);
-    var pvId   = 'PV-' + String(i).padStart(3, '0');
-    var fSlug  = slug(pagador);
-    var fExt   = i % 3 === 0 ? 'jpg' : 'pdf';
-
-    var temExtrato  = status !== 'aguardando_financeiro';
-    var temContrato = status === 'diferenca_pendente' || status === 'pronto' || status === 'concluida';
-
-    var tipoExtrato = i % 4 === 0 ? 'manual' : 'auto';
-    var extrato = temExtrato
-      ? { remetente: pagador.toUpperCase(), valor: valor, dataHora: dataHora, tipo: tipoExtrato }
-      : null;
-
-    var valorReal   = null;
-    var numContrato = null;
-    if (temContrato) {
-      contratoSeq++;
-      numContrato = String(contratoSeq).padStart(4, '0');
-      if (status === 'diferenca_pendente') {
-        var delta = pick(diffValues, i);
-        valorReal = i % 2 === 0 ? valor + delta : valor - delta;
-      } else {
-        valorReal = valor;
-      }
-    }
-
-    var contratoDay = Math.min(day + 1, 14);
-    var contrato = temContrato
-      ? { fileName: 'contrato_' + fSlug + '.pdf', uploadedAt: fmtDate(contratoDay, 10, 0), numContrato: numContrato }
-      : null;
-
-    var history = [
-      { when: uploadedAt, who: mgFirst + ' (Comercial)', what: 'Pré-venda criada · comprovante enviado' },
-    ];
-
-    if (temExtrato) {
-      var vinculoWho  = tipoExtrato === 'auto' ? 'Sistema' : 'Marcelo (Fase 1)';
-      var vinculoWhat = tipoExtrato === 'auto'
-        ? 'PIX vinculado automaticamente ao extrato bancário · R$ ' + valor.toFixed(2).replace('.', ',')
-        : 'PIX vinculado manualmente · R$ ' + valor.toFixed(2).replace('.', ',');
-      history.push({ when: fmtDate(day, Math.min(hour + 2, 23), 0), who: vinculoWho, what: vinculoWhat });
-    }
-
-    if (temContrato) {
-      history.push({ when: fmtDate(contratoDay, 10, 0), who: mgFirst + ' (Comercial)', what: 'Contrato enviado · Contrato ' + numContrato });
-      if (status === 'diferenca_pendente') {
-        var absDelta    = Math.abs(valorReal - valor);
-        var deltaStr    = absDelta.toFixed(2).replace('.', ',');
-        var valorRealStr = valorReal.toFixed(2).replace('.', ',');
-        var valorStr    = valor.toFixed(2).replace('.', ',');
-        if (valorReal > valor) {
-          history.push({ when: fmtDate(contratoDay, 10, 1), who: 'Sistema', what: 'Diferença detectada · cliente pagou R$ ' + valorStr + ' mas contrato exige R$ ' + valorRealStr + ' · aguardando comprovante complementar de R$ ' + deltaStr });
-        } else {
-          history.push({ when: fmtDate(contratoDay, 10, 1), who: 'Sistema', what: 'Pagamento excede o valor do contrato · R$ ' + deltaStr + ' a devolver ao cliente · aguardando abertura de chamado' });
-        }
-      } else if (status === 'pronto') {
-        history.push({ when: fmtDate(contratoDay, 10, 2), who: 'Sistema', what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' });
-      } else if (status === 'concluida') {
-        var aprovDay = Math.min(contratoDay + 1, 14);
-        history.push({ when: fmtDate(contratoDay, 10, 2), who: 'Sistema', what: 'Comprovante, extrato e contrato confirmados · pronto para aprovação de cota' });
-        history.push({ when: fmtDate(aprovDay, 9, 0), who: 'Patrícia (Fase 2)', what: 'Contrato ' + numContrato + ' lançado na administradora · venda concluída' });
-      }
-    }
-
-    var rec = {
-      id: pvId,
-      campanhaId: 'CMP-2026-08',
-      gerenteId: mgid,
-      gerenteNome: mgName,
-      nomeVendedor: vendedor,
-      nomePagador: pagador,
-      nomeCliente: cliente,
-      mesmoNomeContrato: !diffPag,
-      motivoDiferenca: diffPag ? 'Pagador distinto do titular da cota' : '',
-      valorComprovante: valor,
-      dataHora: dataHora,
-      comprovante: { fileName: 'pix_' + fSlug + '.' + fExt, uploadedAt: uploadedAt },
-      observacao: '',
-      status: status,
-      extrato: extrato,
-      valorReal: valorReal,
-      contrato: contrato,
-      history: history,
-    };
-
-    if (i % 15 === 7) rec.urgente = true;
-    if (status === 'diferenca_pendente') {
-      rec.comprovanteComplementar = null;
-      rec.chamadoReembolso = null;
-    }
-
-    RECORDS.push(rec);
-  }
-})();
 
 // Histórico de extratos importados
 let EXTRATO_HISTORY = [
   {
     id: 'EXT-001',
-    fileName: 'extrato_01_06_junho.pdf',
-    importedAt: '2026-06-02 08:45',
+    fileName: 'extrato_03_junho.pdf',
+    importedAt: '2026-06-04 08:45',
     importedBy: 'Marcelo Tavares',
     autoLinked: 3,
     pending: 1,
     entries: [
       { remetente: 'MARIA OLIVEIRA',  valor: 980.00,  dataHora: '2026-06-03 15:18', vinculadoId: 'PV-002', vinculadoNome: 'Maria Oliveira',  status: 'auto'    },
-      { remetente: 'RICARDO ALVES',   valor: 1120.00, dataHora: '2026-06-02 09:30', vinculadoId: 'PV-012', vinculadoNome: 'Ricardo Alves',   status: 'auto'    },
-      { remetente: 'VINICIUS REIS',   valor: 1260.00, dataHora: '2026-06-08 08:15', vinculadoId: 'PV-006', vinculadoNome: 'Vinícius Reis',   status: 'auto'    },
+      { remetente: 'RICARDO ALVES',   valor: 1120.00, dataHora: '2026-06-02 09:30', vinculadoId: 'PV-007', vinculadoNome: 'Ricardo Alves',   status: 'auto'    },
+      { remetente: 'JULIANA CASTRO',  valor: 1050.00, dataHora: '2026-06-01 13:30', vinculadoId: 'PV-009', vinculadoNome: 'Juliana Castro',  status: 'auto'    },
       { remetente: 'FERNANDA COUTO',  valor: 1200.00, dataHora: '2026-06-06 15:44', vinculadoId: null,     vinculadoNome: null,              status: 'pending' },
     ],
   },
   {
     id: 'EXT-002',
-    fileName: 'extrato_06_junho.pdf',
-    importedAt: '2026-06-07 09:10',
+    fileName: 'extrato_07_junho.pdf',
+    importedAt: '2026-06-08 09:10',
     importedBy: 'Marcelo Tavares',
     autoLinked: 3,
-    pending: 2,
+    pending: 1,
     entries: [
-      { remetente: 'DIEGO MARTINS',   valor: 1080.00, dataHora: '2026-06-06 09:21', vinculadoId: 'PV-005', vinculadoNome: 'Diego Martins',   status: 'auto'    },
-      { remetente: 'LARISSA VIEIRA',  valor: 1320.00, dataHora: '2026-06-05 16:12', vinculadoId: 'PV-007', vinculadoNome: 'Larissa Vieira',  status: 'auto'    },
-      { remetente: 'ANA BEATRIZ SOUZA',valor:1350.00, dataHora: '2026-06-07 11:05', vinculadoId: 'PV-011', vinculadoNome: 'Ana Beatriz Souza',status:'auto'    },
-      { remetente: 'SERGIO PINTO',    valor: 1750.00, dataHora: '2026-06-01 08:55', vinculadoId: null,     vinculadoNome: null,              status: 'pending' },
-      { remetente: 'TATIANA LIMA',    valor: 1100.00, dataHora: '2026-06-06 13:00', vinculadoId: 'PV-010', vinculadoNome: 'Tatiana Lima',    status: 'manual'  },
+      { remetente: 'ANA BEATRIZ SOUZA', valor: 1350.00, dataHora: '2026-06-07 11:05', vinculadoId: 'PV-005', vinculadoNome: 'Ana Beatriz Souza', status: 'auto'   },
+      { remetente: 'CARLA FONTANA',     valor: 1380.00, dataHora: '2026-06-07 14:40', vinculadoId: 'PV-006', vinculadoNome: 'Carla Fontana',     status: 'auto'   },
+      { remetente: 'TATIANA LIMA',      valor: 1300.00, dataHora: '2026-06-08 16:00', vinculadoId: 'PV-010', vinculadoNome: 'Tatiana Lima',      status: 'manual' },
+      { remetente: 'SERGIO PINTO',      valor: 1750.00, dataHora: '2026-06-08 08:55', vinculadoId: null,     vinculadoNome: null,                status: 'pending'},
     ],
   },
 ];
 
-// PIX no extrato sem pré-venda correspondente
+// PIX no extrato sem pré-venda correspondente (usados na tela de Conciliação)
 let EXTRATO_ORPHANS = [
-  { id: 'E-100', remetente: 'FERNANDA COUTO',    valor: 1200.00, dataHora: '2026-06-06 15:44', chavePix: '(não disponível)' },
-  { id: 'E-101', remetente: 'SERGIO PINTO',      valor: 1750.00, dataHora: '2026-06-01 08:55', chavePix: '(não disponível)' },
-  { id: 'E-102', remetente: 'ROBERTA C ALMEIDA', valor: 1400.00, dataHora: '2026-06-04 11:22', chavePix: '(não disponível)' },
-  { id: 'E-103', remetente: 'RODRIGO SILVA',     valor: 1190.00, dataHora: '2026-06-09 10:15', chavePix: '(não disponível)' },
+  { id: 'E-100', remetente: 'FERNANDA COUTO', valor: 1200.00, dataHora: '2026-06-06 15:44', chavePix: '(não disponível)' },
+  { id: 'E-101', remetente: 'SERGIO PINTO',   valor: 1750.00, dataHora: '2026-06-08 08:55', chavePix: '(não disponível)' },
 ];
 
 const STATUS_CHIP = {
@@ -794,12 +462,14 @@ const STATUS_CHIP = {
   'diferenca_pendente':    'chip-orange',
   'pronto':                'chip-green',
   'concluida':             'chip-teal',
+  'cancelada':             'chip-red',
 };
 
 const STATUS_LABEL = {
-  'aguardando_financeiro': 'Análise financeira',
+  'aguardando_financeiro': 'Aguardando extrato',
   'aguardando_contrato':   'Aguardando contrato',
   'diferenca_pendente':    'Diferença pendente',
   'pronto':                'Pronto para aprovação',
   'concluida':             'Concluída',
+  'cancelada':             'Cancelada',
 };

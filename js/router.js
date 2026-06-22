@@ -18,6 +18,8 @@ const Router = {
     // Aprovação de Cota
     'aprovacoes':        { render: () => Screens.aprovacoes(),       bind: () => Screens.aprovacoesBind() },
     'campanhas':         { render: () => Screens.campanhas(),        bind: () => Screens.campanhasBind() },
+    // Fase 3
+    'cobrancas':         { render: () => Screens.cobrancas(),        bind: () => Screens.cobrancasBind() },
   },
 
   current: 'login',
@@ -81,15 +83,19 @@ const Router = {
     const gerenteOnly   = ['nova-prevenda', 'minhas-vendas', 'vendas-concluidas'];
     const financeiroOnly = ['dashboard', 'importar-extrato', 'conciliacao'];
     const aprovOnly      = ['aprovacoes', 'campanhas'];
+    const fase3Only      = ['cobrancas'];
 
-    if (role === 'gerente'       && (financeiroOnly.includes(route) || aprovOnly.includes(route))) {
+    if (role === 'gerente'        && (financeiroOnly.includes(route) || aprovOnly.includes(route) || fase3Only.includes(route))) {
       location.hash = '#/minhas-vendas'; return;
     }
-    if (role === 'financeiro'    && (gerenteOnly.includes(route)    || aprovOnly.includes(route))) {
+    if (role === 'financeiro'     && (gerenteOnly.includes(route) || aprovOnly.includes(route) || fase3Only.includes(route))) {
       location.hash = '#/dashboard'; return;
     }
-    if (role === 'backoffice_adm' && (gerenteOnly.includes(route)   || financeiroOnly.includes(route))) {
+    if (role === 'backoffice_adm' && (gerenteOnly.includes(route) || financeiroOnly.includes(route) || fase3Only.includes(route))) {
       location.hash = '#/aprovacoes'; return;
+    }
+    if (role === 'fase3'          && (gerenteOnly.includes(route) || financeiroOnly.includes(route) || aprovOnly.includes(route))) {
+      location.hash = '#/cobrancas'; return;
     }
 
     this.current = route;
@@ -104,6 +110,7 @@ const Router = {
     const role = State.persona.role === 'Comercial' ? 'gerente' : State.persona.id;
     if (role === 'gerente')       return 'minhas-vendas';
     if (role === 'financeiro')    return 'dashboard';
+    if (role === 'fase3')         return 'cobrancas';
     return 'aprovacoes';
   },
 
